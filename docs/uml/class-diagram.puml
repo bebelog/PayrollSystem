@@ -1,0 +1,136 @@
+﻿@startuml
+skinparam classAttributeIconSize 0
+
+package "1. Payroll.CoreBusiness" {
+    class Employee {
+        +int EmployeeId
+        +string FullName
+        +string Email
+        +string PhoneNumber
+        +string IdentityNumber
+        +int DepartmentId
+        +DateTime HireDate
+        +bool IsActive
+    }
+
+    class Contract {
+        +int ContractId
+        +int EmployeeId
+        +string ContractNumber
+        +decimal BaseSalary
+        +decimal Allowance
+        +DateTime EffectiveFrom
+        +bool IsActive
+    }
+
+    class Timesheet {
+        +int TimesheetId
+        +int EmployeeId
+        +int Month
+        +int Year
+        +TimesheetStatus Status
+        +decimal CalculateActualWorkingDays()
+    }
+
+    class TimesheetEntry {
+        +int EntryId
+        +int TimesheetId
+        +DateTime WorkDate
+        +TimesheetDayStatus DayStatus
+        +string Note
+    }
+
+    class Payslip {
+        +int PayslipId
+        +int PeriodId
+        +int EmployeeId
+        +decimal BaseSalarySnapshot
+        +decimal StandardDaysSnapshot
+        +decimal ActualDaysSnapshot
+        +decimal WorkingSalary
+        +decimal AllowanceSnapshot
+        +decimal GrossSalary
+        +decimal TotalInsuranceDeduction
+        +decimal TaxableIncome
+        +decimal PersonalIncomeTax
+        +decimal NetSalary
+    }
+
+    class PayslipLine {
+        +int LineId
+        +int PayslipId
+        +PayslipLineType LineType
+        +string ItemCode
+        +string ItemName
+        +decimal? RateOrThresholdSnapshot
+        +decimal Amount
+    }
+
+    class PayrollCalculator <<DomainService>> {
+        +{static} Calculate(contract, actualDays, standardDays, dependentsCount, setting, rates, brackets) : PayrollCalculationResult
+    }
+
+    class PeriodStateMachine <<DomainService>> {
+        +{static} ValidateTransition(current, target)
+        +{static} EnsurePeriodNotClosed(period)
+    }
+
+    class TimesheetStateMachine <<DomainService>> {
+        +{static} ValidateTransition(current, target)
+        +{static} EnsureCanCalculateSalary(timesheet)
+    }
+
+    class BusinessRuleException <<Exception>>
+}
+
+package "2. Payroll.UseCases" {
+    interface IPayrollRepository
+    interface ITimesheetRepository
+    interface IEmployeeRepository
+    interface IConfigurationRepository
+    interface IPasswordHasher
+    interface IPayrollExporter
+
+    class CalculatePayrollPeriodUseCase {
+        -IPayrollRepository _payrollRepository
+        -IEmployeeRepository _employeeRepository
+        -IContractRepository _contractRepository
+        -ITimesheetRepository _timesheetRepository
+        -IConfigurationRepository _configurationRepository
+        +ExecuteAsync(periodId) : Task<int>
+    }
+
+    class RecordAttendanceTodayUseCase {
+        +ExecuteAsync(employeeId) : Task
+    }
+
+    class ViewMyPayslipUseCase {
+        +ExecuteAsync(loggedEmpId, role, targetEmpId, periodId) : Task<Payslip>
+    }
+}
+
+package "3. Payroll.Plugins" {
+    class PayrollRepository implements IPayrollRepository {
+        -ISqlConnectionFactory _factory
+        +SaveCalculatedPayslipsAsync(periodId, payslips) : Task <<ACID Transaction>>
+    }
+
+    class TimesheetRepository implements ITimesheetRepository
+    class EmployeeRepository implements IEmployeeRepository
+    class PasswordHasher implements IPasswordHasher
+    class PayrollExcelExporter implements IPayrollExporter
+}
+
+package "4. Payroll.WebApp" {
+    class Program <<CompositionRoot>>
+    class ManagePayrollPage
+    class HomePage
+    class MyTimesheetPage
+}
+
+CalculatePayrollPeriodUseCase ..> PayrollCalculator : uses
+CalculatePayrollPeriodUseCase ..> PeriodStateMachine : uses
+CalculatePayrollPeriodUseCase ..> TimesheetStateMachine : uses
+CalculatePayrollPeriodUseCase --> IPayrollRepository
+ManagePayrollPage --> CalculatePayrollPeriodUseCase : @inject
+@enduml

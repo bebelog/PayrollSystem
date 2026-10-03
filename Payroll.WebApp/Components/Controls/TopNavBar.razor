@@ -1,0 +1,105 @@
+﻿@using System.Security.Claims
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-2 px-3 shadow-sm" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;">
+    <div class="container-fluid">
+        <!-- Brand Logo -->
+        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-white fs-5" href="/">
+            <div class="rounded p-1 bg-primary text-white d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                <i class="bi bi-wallet2 fs-6"></i>
+            </div>
+            <span>Smart<span class="text-primary fw-bold">Payroll</span></span>
+        </a>
+
+        <!-- Student Tag (HUE) -->
+        <div class="d-none d-md-flex align-items-center px-2 py-1 rounded bg-white bg-opacity-10 text-white-50 border border-white border-opacity-10" style="font-size: 0.78rem;">
+            <i class="bi bi-person-badge text-warning me-1"></i>
+            <span>Nguyễn Viết Mẫn (23K4080026 - HUE)</span>
+        </div>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavCollapse">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="topNavCollapse">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3 gap-1">
+                <li class="nav-item">
+                    <NavLink class="nav-link text-white-50 px-2" href="" Match="NavLinkMatch.All">
+                        <i class="bi bi-speedometer2 me-1"></i>Trang Chủ
+                    </NavLink>
+                </li>
+
+                <AuthorizeView Roles="Accountant">
+                    <Authorized>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white-50 px-2" href="admin/employees">
+                                <i class="bi bi-people me-1"></i>Nhân Viên
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white-50 px-2" href="admin/timesheets">
+                                <i class="bi bi-calendar-check me-1"></i>Duyệt Bảng Công
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white-50 px-2" href="admin/payroll">
+                                <i class="bi bi-cash-stack me-1"></i>Kỳ Lương &amp; Tính Lương
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white-50 px-2" href="admin/settings">
+                                <i class="bi bi-gear me-1"></i>Cấu Hình Lương
+                            </NavLink>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="Employee">
+                    <Authorized>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white-50 px-2" href="my-timesheet">
+                                <i class="bi bi-calendar3 me-1"></i>Bảng Công Của Tôi
+                            </NavLink>
+                        </li>
+                        <li class="nav-item">
+                            <NavLink class="nav-link text-white-50 px-2" href="my-payslip">
+                                <i class="bi bi-receipt me-1"></i>Phiếu Lương Của Tôi
+                            </NavLink>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
+            </ul>
+
+            <!-- Auth Status Right -->
+            <div class="d-flex align-items-center gap-2">
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="text-end text-white me-2 d-none d-sm-block">
+                            <div class="small fw-bold">@context.User.Identity?.Name</div>
+                            <div class="text-white-50" style="font-size: 0.72rem;">
+                                @if (context.User.IsInRole("Accountant"))
+                                {
+                                    <span class="badge bg-warning text-dark py-0">Kế toán (Admin)</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-info text-dark py-0">Nhân viên</span>
+                                }
+                            </div>
+                        </div>
+
+                        <a href="/api/account/logout" class="btn btn-outline-light btn-sm px-3" title="Đăng xuất">
+                            <i class="bi bi-box-arrow-right me-1"></i>Đăng xuất
+                        </a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="login" class="btn btn-primary btn-sm px-3">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Đăng Nhập
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+</nav>

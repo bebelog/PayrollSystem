@@ -1,0 +1,463 @@
+﻿@page "/admin/payroll"
+@attribute [Authorize(Roles = "Accountant")]
+@inject IViewPayrollPeriodsUseCase ViewPayrollPeriodsUseCase
+@inject ICreatePayrollPeriodUseCase CreatePayrollPeriodUseCase
+@inject ICalculatePayrollPeriodUseCase CalculatePayrollPeriodUseCase
+@inject IClosePayrollPeriodUseCase ClosePayrollPeriodUseCase
+@inject IViewPayslipsByPeriodUseCase ViewPayslipsByPeriodUseCase
+@inject IExportPayrollToExcelUseCase ExportPayrollToExcelUseCase
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Kỳ Lương & Tính Lương - SmartPayroll</PageTitle>
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1">
+                <i class="bi bi-cash-stack text-primary me-2"></i>Kỳ Lương &amp; Bảng Thanh Toán Lương
+            </h3>
+            <p class="text-muted mb-0">Tạo kỳ lương, tính lương tự động theo Luật 1 &amp; 2, chốt kỳ và xuất file Excel.</p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm px-3" @onclick="() => _showCreatePeriodModal = true">
+                <i class="bi bi-plus-circle me-1"></i>Tạo Kỳ Lương Mới
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi:</strong> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    <!-- Period Selector & Action Bar -->
+    <div class="card card-clean p-3 shadow-sm border-0 bg-white mb-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <label class="fw-bold text-slate-800 small text-nowrap mb-0">Chọn Kỳ Lương:</label>
+                <select class="form-select form-select-sm" style="min-width: 200px;" @bind="_selectedPeriodId" @bind:after="LoadPayslipsAsync">
+                    @foreach (var p in _periods)
+                    {
+                        <option value="@p.PeriodId">
+                            Tháng @p.Month/@p.Year (@p.StandardWorkingDays ngày công) - @(p.Status switch {
+                                PayrollPeriodStatus.Open => "Mở (Chưa tính)",
+                                PayrollPeriodStatus.Calculated => "Đã tính (Chờ chốt)",
+                                PayrollPeriodStatus.Closed => "Đã chốt",
+                                _ => ""
+                            })
+                        </option>
+                    }
+                </select>
+
+                @if (_currentPeriod != null)
+                {
+                    @switch (_currentPeriod.Status)
+                    {
+                        case PayrollPeriodStatus.Open:
+                            <span class="badge bg-secondary-subtle text-secondary border px-3 py-2">Trạng thái: Mở</span>
+                            break;
+                        case PayrollPeriodStatus.Calculated:
+                            <span class="badge bg-primary-subtle text-primary border px-3 py-2">Trạng thái: Đã tính</span>
+                            break;
+                        case PayrollPeriodStatus.Closed:
+                            <span class="badge bg-success-subtle text-success border px-3 py-2"><i class="bi bi-lock-fill me-1"></i>Đã chốt</span>
+                            break;
+                    }
+                }
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex flex-wrap gap-2">
+                @if (_currentPeriod != null && _currentPeriod.Status != PayrollPeriodStatus.Closed)
+                {
+                    <button type="button" class="btn btn-primary btn-sm px-3 fw-bold"
+                            disabled="@_isCalculating"
+                            @onclick="HandleCalculatePayroll">
+                        @if (_isCalculating)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>Đang tính...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-cpu me-1"></i>
+                            <span>Tính Lương Tự Động</span>
+                        }
+                    </button>
+                }
+
+                @if (_currentPeriod != null && _currentPeriod.Status == PayrollPeriodStatus.Calculated)
+                {
+                    <button type="button" class="btn btn-warning btn-sm text-dark px-3 fw-bold"
+                            @onclick="() => _showCloseConfirm = true">
+                        <i class="bi bi-lock me-1"></i>Chốt Kỳ Lương
+                    </button>
+                }
+
+                @if (_payslips.Any())
+                {
+                    <button type="button" class="btn btn-success btn-sm px-3 fw-bold"
+                            disabled="@_isExporting"
+                            @onclick="HandleExportExcel">
+                        @if (_isExporting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>Đang xuất...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-file-earmark-excel me-1"></i>
+                            <span>Xuất File Excel (.xlsx)</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Payslips Table -->
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Đang tải bảng lương...</p>
+        </div>
+    }
+    else if (_payslips.Any())
+    {
+        <div class="card card-clean shadow-sm border-0 bg-white">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>STT</th>
+                            <th>Họ và Tên</th>
+                            <th>Phòng Ban</th>
+                            <th>Lương HĐ</th>
+                            <th>Công Thực</th>
+                            <th>Lương Công</th>
+                            <th>Phụ Cấp</th>
+                            <th>Gross</th>
+                            <th>Bảo Hiểm</th>
+                            <th>Thuế TNCN</th>
+                            <th>Thực Lĩnh (Net)</th>
+                            <th class="text-end">Phiếu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int stt = 1; }
+                        @foreach (var p in _payslips)
+                        {
+                            <tr>
+                                <td>@(stt++)</td>
+                                <td>
+                                    <strong class="text-slate-900 fs-6">@(p.Employee?.FullName ?? $"NV #{p.EmployeeId}")</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary">
+                                        @(p.Employee?.Department?.DepartmentName ?? "---")
+                                    </span>
+                                </td>
+                                <td><MoneyText Amount="@p.BaseSalarySnapshot" Bold="false" /></td>
+                                <td class="fw-bold">@p.ActualDaysSnapshot / @p.StandardDaysSnapshot</td>
+                                <td><MoneyText Amount="@p.WorkingSalary" Bold="false" /></td>
+                                <td class="text-muted"><MoneyText Amount="@p.AllowanceSnapshot" Bold="false" /></td>
+                                <td class="fw-bold text-success"><MoneyText Amount="@p.GrossSalary" /></td>
+                                <td class="text-danger">-<MoneyText Amount="@p.TotalInsuranceDeduction" Bold="false" /></td>
+                                <td class="text-danger">-<MoneyText Amount="@p.PersonalIncomeTax" Bold="false" /></td>
+                                <td class="fw-bold text-primary fs-6"><MoneyText Amount="@p.NetSalary" /></td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2"
+                                            @onclick="() => _selectedPayslipForModal = p">
+                                        <i class="bi bi-eye"></i> Xem
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="7" class="text-center">TỔNG CỘNG (@_payslips.Count nhân viên)</td>
+                            <td class="text-success"><MoneyText Amount="@_payslips.Sum(p => p.GrossSalary)" /></td>
+                            <td class="text-danger">-<MoneyText Amount="@_payslips.Sum(p => p.TotalInsuranceDeduction)" /></td>
+                            <td class="text-danger">-<MoneyText Amount="@_payslips.Sum(p => p.PersonalIncomeTax)" /></td>
+                            <td class="text-primary fs-6"><MoneyText Amount="@_payslips.Sum(p => p.NetSalary)" /></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card card-clean p-5 text-center shadow-sm border-0 bg-white">
+            <i class="bi bi-calculator text-muted fs-1 mb-3"></i>
+            <h5 class="fw-bold text-slate-800">Kỳ lương này chưa được tính toán</h5>
+            <p class="text-muted small mb-3">Hãy đảm bảo bảng công các nhân viên đã được duyệt, sau đó bấm "Tính Lương Tự Động".</p>
+            @if (_currentPeriod != null && _currentPeriod.Status == PayrollPeriodStatus.Open)
+            {
+                <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm"
+                        disabled="@_isCalculating"
+                        @onclick="HandleCalculatePayroll">
+                    <i class="bi bi-cpu me-1"></i>Tính Lương Tự Động Ngay
+                </button>
+            }
+        </div>
+    }
+</div>
+
+<!-- Modal Tạo Kỳ Lương Mới -->
+@if (_showCreatePeriodModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header border-bottom pb-2">
+                    <h5 class="modal-title fw-bold text-slate-900">
+                        <i class="bi bi-plus-circle text-primary me-2"></i>Tạo Kỳ Lương Mới
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="() => _showCreatePeriodModal = false"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tháng *</label>
+                        <select class="form-select form-select-sm" @bind="_newMonth">
+                            @for (int m = 1; m <= 12; m++)
+                            {
+                                <option value="@m">Tháng @m</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Năm *</label>
+                        <input type="number" class="form-control form-control-sm" @bind="_newYear" min="2020" max="2100" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Số Ngày Công Chuẩn Của Kỳ *</label>
+                        <input type="number" step="0.5" class="form-control form-control-sm" @bind="_newStandardDays" />
+                        <span class="text-muted" style="font-size: 0.72rem;">Thường là 22 ngày (nghỉ T7, CN) hoặc 26 ngày (nghỉ CN).</span>
+                    </div>
+                </div>
+                <div class="modal-footer border-top pt-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => _showCreatePeriodModal = false">Hủy</button>
+                    <button type="button" class="btn btn-primary btn-sm fw-bold px-3" @onclick="HandleCreatePeriod">
+                        <i class="bi bi-save me-1"></i>Tạo Kỳ Lương
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Xem Chi Tiết Phiếu Lương -->
+@if (_selectedPayslipForModal != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header border-bottom pb-0">
+                    <button type="button" class="btn-close ms-auto" @onclick="() => _selectedPayslipForModal = null"></button>
+                </div>
+                <div class="modal-body p-4 pt-1">
+                    <PayslipCard Payslip="@_selectedPayslipForModal" ShowDetailedLines="true" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Confirm Chốt Kỳ Lương -->
+<ConfirmDialog IsVisible="@_showCloseConfirm"
+               Title="Chốt Kỳ Lương"
+               Message="Khi chốt kỳ lương, toàn bộ dữ liệu bảng công và phiếu lương của kỳ này sẽ được khóa vĩnh viễn (không thể chỉnh sửa hay tính lại). Bạn có chắc chắn muốn chốt không?"
+               ConfirmText="Chốt Ngay"
+               ConfirmBtnClass="btn-warning text-dark"
+               OnConfirm="HandleClosePeriod"
+               OnCancel="() => _showCloseConfirm = false" />
+
+@code {
+    private List<PayrollPeriod> _periods = new();
+    private int _selectedPeriodId;
+    private PayrollPeriod? _currentPeriod;
+    private List<Payslip> _payslips = new();
+
+    private bool _isLoading = true;
+    private bool _isCalculating;
+    private bool _isExporting;
+    private bool _showCreatePeriodModal;
+    private bool _showCloseConfirm;
+    private Payslip? _selectedPayslipForModal;
+
+    private int _newMonth = DateTime.Today.Month;
+    private int _newYear = DateTime.Today.Year;
+    private decimal _newStandardDays = 22m;
+
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPeriodsAsync();
+    }
+
+    private async Task LoadPeriodsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _periods = (await ViewPayrollPeriodsUseCase.ExecuteAsync()).ToList();
+            if (_periods.Any() && _selectedPeriodId == 0)
+            {
+                _selectedPeriodId = _periods.First().PeriodId;
+            }
+            await LoadPayslipsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadPayslipsAsync()
+    {
+        _currentPeriod = _periods.FirstOrDefault(p => p.PeriodId == _selectedPeriodId);
+        if (_selectedPeriodId > 0)
+        {
+            _payslips = (await ViewPayslipsByPeriodUseCase.ExecuteAsync(_selectedPeriodId)).ToList();
+        }
+        else
+        {
+            _payslips.Clear();
+        }
+    }
+
+    private async Task HandleCreatePeriod()
+    {
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            int newId = await CreatePayrollPeriodUseCase.ExecuteAsync(_newMonth, _newYear, _newStandardDays);
+            _successMessage = $"Tạo kỳ lương tháng {_newMonth}/{_newYear} thành công!";
+            _showCreatePeriodModal = false;
+            _selectedPeriodId = newId;
+            await LoadPeriodsAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleCalculatePayroll()
+    {
+        if (_selectedPeriodId <= 0) return;
+
+        _isCalculating = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            int count = await CalculatePayrollPeriodUseCase.ExecuteAsync(_selectedPeriodId);
+            _successMessage = $"Tính toán thành công phiếu lương cho {count} nhân viên! Dữ liệu đã được lưu an toàn.";
+            await LoadPeriodsAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isCalculating = false;
+        }
+    }
+
+    private async Task HandleClosePeriod()
+    {
+        if (_selectedPeriodId <= 0) return;
+
+        _showCloseConfirm = false;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await ClosePayrollPeriodUseCase.ExecuteAsync(_selectedPeriodId);
+            _successMessage = "Kỳ lương đã được chốt thành công và khóa dữ liệu!";
+            await LoadPeriodsAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleExportExcel()
+    {
+        if (_selectedPeriodId <= 0) return;
+
+        _isExporting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var bytes = await ExportPayrollToExcelUseCase.ExecuteAsync(_selectedPeriodId);
+            string base64 = Convert.ToBase64String(bytes);
+            string fileName = $"BangLuong_Thang{_currentPeriod?.Month}_{_currentPeriod?.Year}.xlsx";
+            await JSRuntime.InvokeVoidAsync("eval", $@"
+                (function() {{
+                    var a = document.createElement('a');
+                    a.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{base64}';
+                    a.download = '{fileName}';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }})();
+            ");
+            _successMessage = "Đã xuất và tải về file Excel thành công!";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Lỗi xuất Excel: {ex.Message}";
+        }
+        finally
+        {
+            _isExporting = false;
+        }
+    }
+}
+

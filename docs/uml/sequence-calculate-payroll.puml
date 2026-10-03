@@ -1,0 +1,87 @@
+﻿@startuml
+autonumber
+actor "Kế Toán\n(Accountant)" as User
+boundary "ManagePayroll.razor\n(Blazor UI)" as UI
+control "CalculatePayrollPeriodUseCase" as UC
+entity "PeriodStateMachine\n(CoreBusiness)" as PeriodSM
+entity "TimesheetStateMachine\n(CoreBusiness)" as TS_SM
+entity "PayrollCalculator\n(CoreBusiness)" as Calc
+participant "IConfigurationRepository" as ConfigRepo
+participant "IEmployeeRepository" as EmpRepo
+participant "ITimesheetRepository" as TSRepo
+participant "PayrollRepository\n(Plugins.Dapper)" as PayrollRepo
+database "SQL Server\n(PayrollDB)" as DB
+
+User -> UI: Bấm nút "Tính Lương Tự Động"
+activate UI
+
+UI -> UC: ExecuteAsync(periodId)
+activate UC
+
+UC -> PayrollRepo: GetPeriodByIdAsync(periodId)
+PayrollRepo -> DB: SELECT * FROM dbo.PayrollPeriod WHERE PeriodId = @PeriodId
+DB --> PayrollRepo: Trả về PayrollPeriod
+PayrollRepo --> UC: PayrollPeriod
+
+UC -> PeriodSM: EnsurePeriodNotClosed(period)
+note over PeriodSM: Kiểm tra Luật 2:\nNếu Status == Closed\n-> Ném BusinessRuleException
+
+UC -> ConfigRepo: GetCurrentSettingAsync(), GetDeductionRatesAsync(), GetTaxBracketsAsync()
+ConfigRepo -> DB: Đọc trần bảo hiểm, mức giảm trừ, tỷ lệ BH, bậc thuế
+DB --> ConfigRepo: Dữ liệu cấu hình
+ConfigRepo --> UC: setting, rates, brackets
+
+UC -> EmpRepo: GetEmployeesAsync(isActive: true)
+EmpRepo -> DB: SELECT * FROM dbo.Employee WHERE IsActive = 1
+DB --> EmpRepo: Danh sách nhân viên
+EmpRepo --> UC: List<Employee>
+
+loop Với từng nhân viên có ActiveContract
+    UC -> TSRepo: GetTimesheetAsync(empId, month, year)
+    TSRepo -> DB: Đọc Header & Entries chấm công
+    DB --> TSRepo: Timesheet
+    TSRepo --> UC: Timesheet
+
+    UC -> TS_SM: EnsureCanCalculateSalary(timesheet)
+    note over TS_SM: Kiểm tra Luật 2:\nBảng công phải có Status == Approved\nNếu chưa duyệt -> Ném BusinessRuleException
+
+    UC -> Calc: Calculate(contract, actualDays, standardDays, dependents, setting, rates, brackets)
+    activate Calc
+    note over Calc
+        Thực thi LUẬT 1:
+        1. Lương công = Lương HĐ * Ngày thực / Ngày chuẩn
+        2. Gross = Lương công + Phụ cấp
+        3. BH = Rate * min(Lương HĐ, Trần 50.6tr)
+        4. Giảm trừ gia cảnh = Bản thân + Người phụ thuộc
+        5. Thu nhập tính thuế = Gross - BH - Giảm trừ
+        6. Thuế TNCN lũy tiến 5 bậc
+        7. Net = Gross - BH - Thuế
+        8. Đóng gói snapshot PayslipLine
+    end note
+    Calc --> UC: PayrollCalculationResult (kèm snapshot Lines)
+    deactivate Calc
+end
+
+UC -> PayrollRepo: SaveCalculatedPayslipsAsync(periodId, payslips)
+activate PayrollRepo
+note over PayrollRepo
+    GIAO DỊCH TOÀN VẸN ACID (IDbTransaction):
+    1. DELETE PayslipLine & Payslip cũ của kỳ
+    2. INSERT từng Payslip Header (lấy SCOPE_IDENTITY)
+    3. INSERT từng PayslipLine Detail
+    4. Commit Transaction (Nếu lỗi -> Rollback)
+end note
+PayrollRepo -> DB: BEGIN TRANSACTION ... COMMIT
+DB --> PayrollRepo: Success
+PayrollRepo --> UC: Hoàn tất lưu CSDL
+deactivate PayrollRepo
+
+UC -> PayrollRepo: UpdatePeriodStatusAsync(periodId, Calculated)
+PayrollRepo -> DB: UPDATE dbo.PayrollPeriod SET Status = 2 (Đã tính)
+
+UC --> UI: Trả về số lượng phiếu lương đã tính (count)
+deactivate UC
+
+UI --> User: Hiển thị thông báo thành công & Bảng lương chi tiết
+deactivate UI
+@enduml

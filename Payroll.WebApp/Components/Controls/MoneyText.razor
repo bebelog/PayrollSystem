@@ -1,0 +1,36 @@
+﻿<span class="@CssClass">
+    @if (!string.IsNullOrEmpty(Prefix))
+    {
+        <span>@Prefix </span>
+    }
+    @FormattedAmount
+</span>
+
+@code {
+    [Parameter] public decimal Amount { get; set; }
+    [Parameter] public string? Prefix { get; set; }
+    [Parameter] public bool HighlightPositive { get; set; }
+    [Parameter] public bool HighlightNegative { get; set; }
+    [Parameter] public bool Bold { get; set; } = true;
+    [Parameter] public string? CustomClass { get; set; }
+
+    private string FormattedAmount => $"{Amount:N0} đ";
+
+    private string CssClass
+    {
+        get
+        {
+            var classes = new List<string>();
+            if (Bold) classes.Add("fw-bold");
+
+            if (HighlightPositive && Amount > 0)
+                classes.Add("text-success");
+            else if (HighlightNegative && Amount > 0)
+                classes.Add("text-danger");
+            else if (!string.IsNullOrEmpty(CustomClass))
+                classes.Add(CustomClass);
+
+            return string.Join(" ", classes);
+        }
+    }
+}

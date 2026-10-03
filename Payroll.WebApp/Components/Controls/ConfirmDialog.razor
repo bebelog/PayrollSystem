@@ -1,0 +1,41 @@
+﻿@if (IsVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-slate-900">
+                        <i class="bi bi-question-circle text-primary me-2"></i>@Title
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="HandleCancel"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="mb-0 text-secondary">@Message</p>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary px-3" @onclick="HandleCancel">
+                        @CancelText
+                    </button>
+                    <button type="button" class="btn @ConfirmBtnClass px-4 fw-bold" @onclick="HandleConfirm">
+                        @ConfirmText
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string Title { get; set; } = "Xác nhận thao tác";
+    [Parameter] public string Message { get; set; } = "Bạn có chắc chắn muốn thực hiện hành động này không?";
+    [Parameter] public string ConfirmText { get; set; } = "Đồng ý";
+    [Parameter] public string CancelText { get; set; } = "Hủy bỏ";
+    [Parameter] public string ConfirmBtnClass { get; set; } = "btn-primary";
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task HandleConfirm() => await OnConfirm.InvokeAsync();
+    private async Task HandleCancel() => await OnCancel.InvokeAsync();
+}

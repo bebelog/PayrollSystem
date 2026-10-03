@@ -1,0 +1,230 @@
+﻿@page "/admin/settings"
+@attribute [Authorize(Roles = "Accountant")]
+@inject IViewPayrollSettingsUseCase ViewPayrollSettingsUseCase
+@inject IUpdatePayrollSettingsUseCase UpdatePayrollSettingsUseCase
+
+<PageTitle>Cấu Hình Lương & Thuế - SmartPayroll</PageTitle>
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1">
+                <i class="bi bi-gear text-primary me-2"></i>Cấu Hình Trần Lương, Bảo Hiểm &amp; Thuế TNCN
+            </h3>
+            <p class="text-muted mb-0">Quản lý các tham số tính lương theo quy định hiện hành (không hardcode).</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi:</strong> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Đang nạp cấu hình...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <!-- Left Column: Setting Form -->
+            <div class="col-lg-5">
+                <div class="card card-clean p-4 shadow-sm border-0 bg-white">
+                    <h5 class="fw-bold text-slate-900 mb-3 border-bottom pb-2">
+                        <i class="bi bi-sliders text-primary me-2"></i>Trần Bảo Hiểm &amp; Giảm Trừ
+                    </h5>
+
+                    <form @onsubmit="HandleSaveSetting">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Trần Lương Đóng Bảo Hiểm (VND) *</label>
+                            <input type="number" class="form-control" @bind="_setting.InsuranceCeiling" required />
+                            <span class="text-muted" style="font-size: 0.72rem;">Mức lương tối đa để tính đóng BHXH, BHYT, BHTN.</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Mức Giảm Trừ Bản Thân (VND) *</label>
+                            <input type="number" class="form-control" @bind="_setting.PersonalDeduction" required />
+                            <span class="text-muted" style="font-size: 0.72rem;">Mức giảm trừ gia cảnh cho người nộp thuế/tháng.</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Mức Giảm Trừ Mỗi Người Phụ Thuộc (VND) *</label>
+                            <input type="number" class="form-control" @bind="_setting.DependentDeduction" required />
+                            <span class="text-muted" style="font-size: 0.72rem;">Mức giảm trừ cho mỗi người phụ thuộc/tháng.</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Ghi Chú Nguồn Căn Cứ *</label>
+                            <input type="text" class="form-control form-control-sm" @bind="_setting.SourceNote" required />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" disabled="@_isSaving">
+                            @if (_isSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span>Đang lưu...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-save me-1"></i>
+                                <span>Lưu Cập Nhật Cấu Hình</span>
+                            }
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Rates & Brackets -->
+            <div class="col-lg-7">
+                <!-- Deduction Rates Table -->
+                <div class="card card-clean p-4 shadow-sm border-0 bg-white mb-4">
+                    <h5 class="fw-bold text-slate-900 mb-3 border-bottom pb-2">
+                        <i class="bi bi-shield-check text-success me-2"></i>Tỷ Lệ Đóng Bảo Hiểm (Người Lao Động)
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle small mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã Khoản</th>
+                                    <th>Tên Bảo Hiểm</th>
+                                    <th>Tỷ Lệ Trích (%)</th>
+                                    <th>Ghi Chú Nguồn</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in _rates)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-primary">@r.Code</span></td>
+                                        <td class="fw-bold">@r.Name</td>
+                                        <td class="fw-bold text-danger">@(r.Rate * 100)%</td>
+                                        <td class="text-muted small">@r.SourceNote</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tax Brackets Table -->
+                <div class="card card-clean p-4 shadow-sm border-0 bg-white">
+                    <h5 class="fw-bold text-slate-900 mb-3 border-bottom pb-2">
+                        <i class="bi bi-diagram-3 text-warning me-2"></i>Biểu Thuế Thu Nhập Cá Nhân Lũy Tiến
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle small mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Bậc Thuế</th>
+                                    <th>Ngưỡng Tính Thuế (VND)</th>
+                                    <th>Thuế Suất</th>
+                                    <th>Ghi Chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var b in _brackets)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-secondary">Bậc @b.BracketOrder</span></td>
+                                        <td>
+                                            @if (b.ThresholdMax.HasValue)
+                                            {
+                                                <span>@b.ThresholdMin.ToString("N0") &rarr; @b.ThresholdMax.Value.ToString("N0")</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Trên @b.ThresholdMin.ToString("N0")</span>
+                                            }
+                                        </td>
+                                        <td class="fw-bold text-danger">@(b.TaxRate * 100)%</td>
+                                        <td class="text-muted small">@b.SourceNote</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private PayrollSetting _setting = new();
+    private List<DeductionRate> _rates = new();
+    private List<TaxBracket> _brackets = new();
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettingsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var data = await ViewPayrollSettingsUseCase.ExecuteAsync();
+            _setting = data.Setting;
+            _rates = data.Rates.ToList();
+            _brackets = data.Brackets.ToList();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSaveSetting()
+    {
+        _isSaving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await UpdatePayrollSettingsUseCase.ExecuteAsync(_setting);
+            _successMessage = "Cập nhật cấu hình tính lương thành công!";
+            await LoadSettingsAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}
+

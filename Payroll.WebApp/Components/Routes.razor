@@ -1,0 +1,28 @@
+﻿<CascadingAuthenticationState>
+    <Router AppAssembly="typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+                <NotAuthorized>
+                    <div class="container py-5 text-center">
+                        <div class="card card-clean p-5 shadow-sm mx-auto" style="max-width: 500px; border-radius: 12px;">
+                            <i class="bi bi-shield-lock-fill text-danger fs-1 mb-3"></i>
+                            <h4 class="fw-bold text-slate-900">Truy Cập Bị Từ Chối (403)</h4>
+                            <p class="text-muted">Bạn không có quyền truy cập vào khu vực quản trị này.</p>
+                            <a href="" class="btn btn-primary px-4 fw-bold">Về Trang Chủ</a>
+                        </div>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <LayoutView Layout="typeof(Layout.MainLayout)">
+                <div class="container py-5 text-center">
+                    <h3 class="fw-bold">404 - Không Tìm Thấy Trang</h3>
+                    <p class="text-muted">Đường dẫn bạn yêu cầu không tồn tại.</p>
+                    <a href="" class="btn btn-primary">Về Trang Chủ</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

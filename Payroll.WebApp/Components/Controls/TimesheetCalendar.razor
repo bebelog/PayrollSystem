@@ -1,0 +1,150 @@
+﻿@using Payroll.CoreBusiness.Entities
+@using Payroll.CoreBusiness.Enums
+
+<div class="card card-clean shadow-sm p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold text-slate-900 mb-0">
+            <i class="bi bi-calendar3 text-primary me-2"></i>Lịch Chấm Công Tháng @Month/@Year
+        </h6>
+        <div class="d-flex gap-2 align-items-center small">
+            <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-circle-fill me-1"></i>Đi làm</span>
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-circle-fill me-1"></i>Phép</span>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-circle-fill me-1"></i>Không lương</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="bi bi-circle-fill me-1"></i>Lễ</span>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered text-center align-middle mb-0" style="table-layout: fixed;">
+            <thead class="table-light small">
+                <tr>
+                    <th class="py-2">T2</th>
+                    <th class="py-2">T3</th>
+                    <th class="py-2">T4</th>
+                    <th class="py-2">T5</th>
+                    <th class="py-2">T6</th>
+                    <th class="py-2 text-danger">T7</th>
+                    <th class="py-2 text-danger">CN</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{
+                    int daysInMonth = DateTime.DaysInMonth(Year, Month);
+                    var firstDayOfMonth = new DateTime(Year, Month, 1);
+                    // DayOfWeek: Sunday = 0, Monday = 1 ... Saturday = 6
+                    int offset = ((int)firstDayOfMonth.DayOfWeek + 6) % 7; // Monday = 0
+                    int currentDay = 1;
+                    var entryDict = Entries?.ToDictionary(e => e.WorkDate.Date) ?? new Dictionary<DateTime, TimesheetEntry>();
+                }
+
+                @while (currentDay <= daysInMonth)
+                {
+                    <tr>
+                        @for (int col = 0; col < 7; col++)
+                        {
+                            if ((currentDay == 1 && col < offset) || currentDay > daysInMonth)
+                            {
+                                <td class="bg-light text-muted opacity-50 py-3"></td>
+                            }
+                            else
+                            {
+                                var date = new DateTime(Year, Month, currentDay);
+                                bool isWeekend = (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday);
+                                entryDict.TryGetValue(date, out var entry);
+                                int dayNum = currentDay;
+
+                                <td class="p-1 @(isWeekend ? "bg-light-subtle" : "") @(!IsReadOnly ? "cursor-pointer" : "")"
+                                    style="height: 58px;"
+                                    @onclick="() => HandleDayClick(date)">
+                                    <div class="d-flex justify-content-between align-items-center px-1">
+                                        <span class="small fw-bold @(isWeekend ? "text-danger" : "text-slate-700")">@dayNum</span>
+                                        @if (entry != null)
+                                        {
+                                            @switch (entry.DayStatus)
+                                            {
+                                                case TimesheetDayStatus.Working:
+                                                    <span class="badge bg-success" style="font-size: 0.65rem;" title="@entry.Note">8h</span>
+                                                    break;
+                                                case TimesheetDayStatus.PaidLeave:
+                                                    <span class="badge bg-warning text-dark" style="font-size: 0.65rem;" title="@entry.Note">P</span>
+                                                    break;
+                                                case TimesheetDayStatus.UnpaidLeave:
+                                                    <span class="badge bg-danger" style="font-size: 0.65rem;" title="@entry.Note">KL</span>
+                                                    break;
+                                                case TimesheetDayStatus.Holiday:
+                                                    <span class="badge bg-primary" style="font-size: 0.65rem;" title="@entry.Note">Lễ</span>
+                                                    break;
+                                            }
+                                        }
+                                        else if (!isWeekend)
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.65rem;">--</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(entry?.Note))
+                                    {
+                                        <div class="text-truncate text-muted px-1" style="font-size: 0.65rem;" title="@entry.Note">
+                                            @entry.Note
+                                        </div>
+                                    }
+                                </td>
+                                currentDay++;
+                            }
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Summary Box -->
+    @{
+        int workingCount = Entries?.Count(e => e.DayStatus == TimesheetDayStatus.Working) ?? 0;
+        int paidLeaveCount = Entries?.Count(e => e.DayStatus == TimesheetDayStatus.PaidLeave) ?? 0;
+        int unpaidLeaveCount = Entries?.Count(e => e.DayStatus == TimesheetDayStatus.UnpaidLeave) ?? 0;
+        int holidayCount = Entries?.Count(e => e.DayStatus == TimesheetDayStatus.Holiday) ?? 0;
+        int totalValidDays = workingCount + paidLeaveCount + holidayCount;
+    }
+    <div class="row g-2 mt-2 pt-2 border-top text-center small">
+        <div class="col-3">
+            <div class="p-2 rounded bg-success-subtle border border-success-subtle">
+                <div class="fw-bold text-success fs-6">@workingCount</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Đi làm (ngày)</div>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="p-2 rounded bg-warning-subtle border border-warning-subtle">
+                <div class="fw-bold text-warning fs-6">@paidLeaveCount</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Nghỉ phép</div>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="p-2 rounded bg-danger-subtle border border-danger-subtle">
+                <div class="fw-bold text-danger fs-6">@unpaidLeaveCount</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Không lương</div>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="p-2 rounded bg-primary-subtle border border-primary-subtle">
+                <div class="fw-bold text-primary fs-6">@totalValidDays</div>
+                <div class="text-muted" style="font-size: 0.75rem;">Tổng công tính lương</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Month { get; set; } = DateTime.Today.Month;
+    [Parameter] public int Year { get; set; } = DateTime.Today.Year;
+    [Parameter] public IEnumerable<TimesheetEntry>? Entries { get; set; }
+    [Parameter] public bool IsReadOnly { get; set; } = true;
+    [Parameter] public EventCallback<DateTime> OnDayClicked { get; set; }
+
+    private async Task HandleDayClick(DateTime date)
+    {
+        if (!IsReadOnly)
+        {
+            await OnDayClicked.InvokeAsync(date);
+        }
+    }
+}

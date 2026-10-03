@@ -1,0 +1,122 @@
+﻿@page "/my-payslip"
+@attribute [Authorize(Roles = "Employee")]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IViewPayrollPeriodsUseCase ViewPayrollPeriodsUseCase
+@inject IViewMyPayslipUseCase ViewMyPayslipUseCase
+
+<PageTitle>Phiếu Lương Của Tôi - SmartPayroll</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1">
+                <i class="bi bi-receipt text-primary me-2"></i>Phiếu Lương Của Tôi
+            </h3>
+            <p class="text-muted mb-0">Tra cứu chi tiết thu nhập, các khoản khấu trừ bảo hiểm và thuế TNCN theo từng kỳ.</p>
+        </div>
+
+        @if (_periods.Any())
+        {
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">Chọn kỳ lương:</span>
+                <select class="form-select form-select-sm" style="min-width: 160px;" @bind="_selectedPeriodId" @bind:after="LoadPayslipAsync">
+                    @foreach (var p in _periods)
+                    {
+                        <option value="@p.PeriodId">Tháng @p.Month/@p.Year (@(p.Status == PayrollPeriodStatus.Closed ? "Đã chốt" : "Đã tính"))</option>
+                    }
+                </select>
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi:</strong> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Đang tải phiếu lương...</p>
+        </div>
+    }
+    else if (_payslip != null)
+    {
+        <PayslipCard Payslip="@_payslip" ShowDetailedLines="true" />
+    }
+    else
+    {
+        <div class="card card-clean p-5 text-center shadow-sm border-0 bg-white">
+            <i class="bi bi-wallet-fill text-muted fs-1 mb-3"></i>
+            <h5 class="fw-bold text-slate-800">Không có phiếu lương cho kỳ này</h5>
+            <p class="text-muted small mb-0">Kỳ lương này chưa được tính toán hoặc bạn chưa có hợp đồng làm việc trong kỳ.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private int? _currentEmployeeId;
+    private List<PayrollPeriod> _periods = new();
+    private int _selectedPeriodId;
+    private Payslip? _payslip;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var empIdClaim = user.FindFirst("EmployeeId");
+        if (empIdClaim != null && int.TryParse(empIdClaim.Value, out int empId))
+        {
+            _currentEmployeeId = empId;
+            var periods = (await ViewPayrollPeriodsUseCase.ExecuteAsync())
+                .Where(p => p.Status == PayrollPeriodStatus.Calculated || p.Status == PayrollPeriodStatus.Closed)
+                .ToList();
+
+            _periods = periods;
+            if (periods.Any())
+            {
+                _selectedPeriodId = periods.First().PeriodId;
+                await LoadPayslipAsync();
+            }
+            else
+            {
+                _isLoading = false;
+            }
+        }
+    }
+
+    private async Task LoadPayslipAsync()
+    {
+        if (!_currentEmployeeId.HasValue || _selectedPeriodId <= 0) return;
+
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _payslip = await ViewMyPayslipUseCase.ExecuteAsync(
+                _currentEmployeeId.Value, 
+                UserRole.Employee, 
+                _currentEmployeeId.Value, 
+                _selectedPeriodId);
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

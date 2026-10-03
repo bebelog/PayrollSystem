@@ -1,0 +1,201 @@
+﻿@page "/my-timesheet"
+@attribute [Authorize(Roles = "Employee")]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IViewMyTimesheetUseCase ViewMyTimesheetUseCase
+@inject ISubmitMyTimesheetUseCase SubmitMyTimesheetUseCase
+@inject DraftTimesheetStateStore DraftStore
+
+<PageTitle>Bảng Công Của Tôi - SmartPayroll</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1">
+                <i class="bi bi-calendar-check text-primary me-2"></i>Bảng Chấm Công Của Tôi
+            </h3>
+            <p class="text-muted mb-0">Theo dõi ngày công thực tế và gửi bảng công cho phòng kế toán duyệt.</p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <select class="form-select form-select-sm" style="width: 110px;" @bind="_selectedMonth" @bind:after="LoadTimesheetAsync">
+                @for (int m = 1; m <= 12; m++)
+                {
+                    <option value="@m">Tháng @m</option>
+                }
+            </select>
+            <select class="form-select form-select-sm" style="width: 100px;" @bind="_selectedYear" @bind:after="LoadTimesheetAsync">
+                @for (int y = 2024; y <= 2027; y++)
+                {
+                    <option value="@y">Năm @y</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi:</strong> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Đang tải bảng công...</p>
+        </div>
+    }
+    else if (_timesheet != null)
+    {
+        <!-- Status Bar -->
+        <div class="card card-clean p-3 shadow-sm border-0 bg-white mb-4">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Trạng thái bảng công:</span>
+                    @switch (_timesheet.Status)
+                    {
+                        case TimesheetStatus.Draft:
+                            <span class="badge bg-secondary-subtle text-secondary border px-3 py-2 fs-6">
+                                <i class="bi bi-pencil me-1"></i>Bản Nháp (Chưa gửi)
+                            </span>
+                            break;
+                        case TimesheetStatus.Submitted:
+                            <span class="badge bg-warning-subtle text-warning border px-3 py-2 fs-6">
+                                <i class="bi bi-clock-history me-1"></i>Đã Gửi (Đang chờ kế toán duyệt)
+                            </span>
+                            break;
+                        case TimesheetStatus.Approved:
+                            <span class="badge bg-success-subtle text-success border px-3 py-2 fs-6">
+                                <i class="bi bi-check-circle-fill me-1"></i>Đã Duyệt (Sẵn sàng tính lương)
+                            </span>
+                            break;
+                    }
+                </div>
+
+                @if (_timesheet.Status == TimesheetStatus.Draft)
+                {
+                    <button type="button" class="btn btn-warning text-dark fw-bold px-4 shadow-sm"
+                            disabled="@_isSubmitting"
+                            @onclick="HandleSubmitTimesheet">
+                        @if (_isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Đang gửi...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-send-fill me-1"></i>
+                            <span>Gửi Bảng Công Để Duyệt</span>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Monthly Calendar View -->
+        <TimesheetCalendar Month="@_selectedMonth" 
+                           Year="@_selectedYear" 
+                           Entries="@_timesheet.Entries" 
+                           IsReadOnly="true" />
+    }
+    else
+    {
+        <div class="card card-clean p-5 text-center shadow-sm border-0 bg-white">
+            <i class="bi bi-calendar-x text-muted fs-1 mb-3"></i>
+            <h5 class="fw-bold text-slate-800">Chưa có bảng công tháng @_selectedMonth/@_selectedYear</h5>
+            <p class="text-muted small mb-0">Bạn chưa phát sinh ngày công nào trong tháng này.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private int _selectedMonth = DateTime.Today.Month;
+    private int _selectedYear = DateTime.Today.Year;
+    private int? _currentEmployeeId;
+
+    private Timesheet? _timesheet;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var empIdClaim = user.FindFirst("EmployeeId");
+        if (empIdClaim != null && int.TryParse(empIdClaim.Value, out int empId))
+        {
+            _currentEmployeeId = empId;
+            await LoadTimesheetAsync();
+        }
+    }
+
+    private async Task LoadTimesheetAsync()
+    {
+        if (!_currentEmployeeId.HasValue) return;
+
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _timesheet = await ViewMyTimesheetUseCase.ExecuteAsync(
+                _currentEmployeeId.Value, 
+                UserRole.Employee, 
+                _currentEmployeeId.Value, 
+                _selectedMonth, 
+                _selectedYear);
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmitTimesheet()
+    {
+        if (_timesheet == null || !_currentEmployeeId.HasValue) return;
+
+        _isSubmitting = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await SubmitMyTimesheetUseCase.ExecuteAsync(_currentEmployeeId.Value, UserRole.Employee, _timesheet.TimesheetId);
+            _successMessage = "Bảng công của bạn đã được gửi thành công đến phòng kế toán!";
+            await LoadTimesheetAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

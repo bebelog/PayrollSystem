@@ -1,0 +1,173 @@
+﻿@using Payroll.CoreBusiness.Entities
+@using Payroll.CoreBusiness.Enums
+
+@if (Payslip != null)
+{
+    <div class="card card-clean shadow p-4 border-0 position-relative" style="max-width: 780px; margin: 0 auto; background: #ffffff;">
+        <!-- Watermark / Brand Header -->
+        <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <div class="rounded p-2 bg-primary text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="bi bi-wallet2 fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold text-slate-900 mb-0">PHIẾU THANH TOÁN LƯƠNG</h5>
+                        <span class="text-muted small">CÔNG TY CỔ PHẦN CÔNG NGHỆ &amp; DỊCH VỤ HUE TECH</span>
+                    </div>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-primary-subtle text-primary fs-6 border border-primary-subtle px-3 py-2">
+                    Kỳ: @Payslip.Period?.Month/@Payslip.Period?.Year
+                </span>
+                @if (OnClose.HasDelegate)
+                {
+                    <button type="button" class="btn-close ms-2" @onclick="OnClose"></button>
+                }
+            </div>
+        </div>
+
+        <!-- Employee Summary Card -->
+        <div class="row g-3 p-3 mb-3 rounded bg-light border small">
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted d-block">Họ và Tên:</span>
+                <strong class="text-slate-900 fs-6">@(Payslip.Employee?.FullName ?? $"NV #{Payslip.EmployeeId}")</strong>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted d-block">Phòng Ban:</span>
+                <strong>@(Payslip.Employee?.Department?.DepartmentName ?? "Kỹ thuật")</strong>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted d-block">Công Chuẩn / Thực:</span>
+                <strong>@Payslip.ActualDaysSnapshot / @Payslip.StandardDaysSnapshot ngày</strong>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted d-block">Người Phụ Thuộc:</span>
+                <strong>@Payslip.DependentCountSnapshot người</strong>
+            </div>
+        </div>
+
+        <!-- Key Financial Overview -->
+        <div class="row g-2 text-center mb-3">
+            <div class="col-sm-4">
+                <div class="p-3 rounded bg-success-subtle border border-success-subtle">
+                    <span class="text-muted small d-block mb-1">TỔNG THU NHẬP (GROSS)</span>
+                    <h5 class="fw-bold text-success mb-0"><MoneyText Amount="@Payslip.GrossSalary" /></h5>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="p-3 rounded bg-danger-subtle border border-danger-subtle">
+                    <span class="text-muted small d-block mb-1">TỔNG KHẤU TRỪ (BẢO HIỂM + THUẾ)</span>
+                    <h5 class="fw-bold text-danger mb-0"><MoneyText Amount="@(Payslip.TotalInsuranceDeduction + Payslip.PersonalIncomeTax)" /></h5>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="p-3 rounded bg-primary text-white shadow-sm">
+                    <span class="text-white-50 small d-block mb-1">THỰC LĨNH (NET)</span>
+                    <h4 class="fw-bold mb-0 text-white"><MoneyText Amount="@Payslip.NetSalary" /></h4>
+                </div>
+            </div>
+        </div>
+
+        @if (ShowDetailedLines && Payslip.Lines.Any())
+        {
+            <!-- Detailed Breakdown Table -->
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle small mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mục Khoản Lương / Khấu Trừ</th>
+                            <th>Loại Khoản</th>
+                            <th>Tỷ Lệ / Căn Cứ</th>
+                            <th class="text-end">Số Tiền (VNĐ)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in Payslip.Lines)
+                        {
+                            <tr>
+                                <td>
+                                    <strong class="text-slate-800">@line.ItemName</strong>
+                                    @if (!string.IsNullOrEmpty(line.Note))
+                                    {
+                                        <div class="text-muted" style="font-size: 0.72rem;">@line.Note</div>
+                                    }
+                                </td>
+                                <td>
+                                    @switch (line.LineType)
+                                    {
+                                        case PayslipLineType.Earning:
+                                            <span class="badge bg-success-subtle text-success">Thu nhập (+)</span>
+                                            break;
+                                        case PayslipLineType.Insurance:
+                                            <span class="badge bg-danger-subtle text-danger">Bảo hiểm (-)</span>
+                                            break;
+                                        case PayslipLineType.TaxDeduction:
+                                            <span class="badge bg-info-subtle text-info">Giảm trừ</span>
+                                            break;
+                                        case PayslipLineType.Tax:
+                                            <span class="badge bg-danger text-white">Thuế TNCN (-)</span>
+                                            break;
+                                        default:
+                                            <span class="badge bg-secondary-subtle text-secondary">Khác</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-muted">
+                                    @if (line.RateOrThresholdSnapshot.HasValue)
+                                    {
+                                        if (line.LineType == PayslipLineType.Insurance || line.LineType == PayslipLineType.Tax)
+                                        {
+                                            <span>@(line.RateOrThresholdSnapshot.Value * 100)%</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@line.RateOrThresholdSnapshot.Value.ToString("N0")</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span>--</span>
+                                    }
+                                </td>
+                                <td class="text-end fw-bold">
+                                    @if (line.LineType == PayslipLineType.Insurance || line.LineType == PayslipLineType.Tax)
+                                    {
+                                        <span class="text-danger">-<MoneyText Amount="@line.Amount" /></span>
+                                    }
+                                    else if (line.LineType == PayslipLineType.Earning)
+                                    {
+                                        <span class="text-success">+<MoneyText Amount="@line.Amount" /></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary"><MoneyText Amount="@line.Amount" /></span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <!-- Footer / Signature Simulation -->
+        <div class="d-flex justify-content-between align-items-end mt-4 pt-3 border-top text-muted small">
+            <div>
+                <i class="bi bi-shield-check text-success me-1"></i>Đã được kiểm duyệt và lưu trữ bảo mật (ACID Snapshot)
+                <div style="font-size: 0.72rem;">Thời gian tính: @Payslip.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")</div>
+            </div>
+            <div class="text-center" style="width: 140px;">
+                <span class="d-block fw-bold text-slate-800">Phòng Kế Toán</span>
+                <span class="badge bg-secondary-subtle text-secondary mt-1">ĐÃ XÁC NHẬN</span>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Payslip? Payslip { get; set; }
+    [Parameter] public bool ShowDetailedLines { get; set; } = true;
+    [Parameter] public EventCallback OnClose { get; set; }
+}

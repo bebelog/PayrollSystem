@@ -1,0 +1,484 @@
+﻿@page "/admin/timesheets"
+@attribute [Authorize(Roles = "Accountant")]
+@inject IViewAllTimesheetsUseCase ViewAllTimesheetsUseCase
+@inject IApproveTimesheetUseCase ApproveTimesheetUseCase
+@inject IRevertTimesheetUseCase RevertTimesheetUseCase
+@inject IAdjustTimesheetEntryUseCase AdjustTimesheetEntryUseCase
+@inject IViewDepartmentsUseCase ViewDepartmentsUseCase
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Duyệt & Điều Chỉnh Bảng Công - SmartPayroll</PageTitle>
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1">
+                <i class="bi bi-calendar-check text-primary me-2"></i>Duyệt &amp; Điều Chỉnh Bảng Công
+            </h3>
+            <p class="text-muted mb-0">Kiểm tra chấm công, phê duyệt hoặc điều chỉnh sai lệch ngày công trước khi tính lương.</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <select class="form-select form-select-sm" style="width: 110px;" @bind="_selectedMonth" @bind:after="LoadTimesheetsAsync">
+                @for (int m = 1; m <= 12; m++)
+                {
+                    <option value="@m">Tháng @m</option>
+                }
+            </select>
+            <select class="form-select form-select-sm" style="width: 100px;" @bind="_selectedYear" @bind:after="LoadTimesheetsAsync">
+                @for (int y = 2024; y <= 2027; y++)
+                {
+                    <option value="@y">Năm @y</option>
+                }
+            </select>
+            <select class="form-select form-select-sm" style="width: 160px;" @bind="_selectedDepartmentId" @bind:after="LoadTimesheetsAsync">
+                <option value="">Tất cả phòng ban</option>
+                @foreach (var d in _departments)
+                {
+                    <option value="@d.DepartmentId">@d.DepartmentName</option>
+                }
+            </select>
+            <select class="form-select form-select-sm" style="width: 140px;" @bind="_selectedStatus" @bind:after="LoadTimesheetsAsync">
+                <option value="">Tất cả trạng thái</option>
+                <option value="@TimesheetStatus.Draft">Nháp</option>
+                <option value="@TimesheetStatus.Submitted">Chờ duyệt</option>
+                <option value="@TimesheetStatus.Approved">Đã duyệt</option>
+            </select>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi:</strong> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    <!-- Table of Timesheets -->
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Đang tải danh sách bảng công...</p>
+        </div>
+    }
+    else if (_timesheets != null && _timesheets.Any())
+    {
+        <div class="card card-clean shadow-sm border-0 bg-white">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th class="ps-3">Mã NV</th>
+                            <th>Họ và Tên</th>
+                            <th>Phòng Ban</th>
+                            <th>Đi Làm</th>
+                            <th>Phép</th>
+                            <th>Không Lương</th>
+                            <th>Tổng Công</th>
+                            <th>Trạng Thái</th>
+                            <th class="text-end pe-3">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in _timesheets)
+                        {
+                            int workingDays = t.Entries?.Count(e => e.DayStatus == TimesheetDayStatus.Working) ?? 0;
+                            int paidLeaves = t.Entries?.Count(e => e.DayStatus == TimesheetDayStatus.PaidLeave) ?? 0;
+                            int unpaidLeaves = t.Entries?.Count(e => e.DayStatus == TimesheetDayStatus.UnpaidLeave) ?? 0;
+                            int totalDays = workingDays + paidLeaves;
+
+                            <tr>
+                                <td class="ps-3 fw-bold text-slate-800">@($"NV{t.EmployeeId:D3}")</td>
+                                <td>
+                                    <div class="fw-semibold text-slate-900">@t.Employee?.FullName</div>
+                                    <div class="text-muted" style="font-size: 0.72rem;">@t.Employee?.Email</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary">
+                                        @(t.Employee?.Department?.DepartmentName ?? "---")
+                                    </span>
+                                </td>
+                                <td class="fw-bold text-success">@workingDays ngày</td>
+                                <td class="text-warning">@paidLeaves ngày</td>
+                                <td class="text-danger">@unpaidLeaves ngày</td>
+                                <td class="fw-bold text-primary fs-6">@totalDays ngày</td>
+                                <td>
+                                    @switch (t.Status)
+                                    {
+                                        case TimesheetStatus.Draft:
+                                            <span class="badge bg-secondary-subtle text-secondary">Nháp</span>
+                                            break;
+                                        case TimesheetStatus.Submitted:
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                <i class="bi bi-clock me-1"></i>Chờ duyệt
+                                            </span>
+                                            break;
+                                        case TimesheetStatus.Approved:
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                <i class="bi bi-check-circle me-1"></i>Đã duyệt
+                                            </span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="text-end pe-3">
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary px-2"
+                                                title="Xem và điều chỉnh chi tiết ngày công"
+                                                @onclick="() => OpenDetailCalendar(t)">
+                                            <i class="bi bi-pencil-square me-1"></i>Chi Tiết / Sửa
+                                        </button>
+
+                                        @if (t.Status == TimesheetStatus.Submitted)
+                                        {
+                                            <button type="button" class="btn btn-success px-2 fw-bold"
+                                                    title="Phê duyệt bảng công này"
+                                                    @onclick="() => HandleApproveTimesheet(t.TimesheetId)">
+                                                <i class="bi bi-check-lg me-1"></i>Duyệt
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning text-dark px-2"
+                                                    title="Trả lại yêu cầu nhân viên sửa"
+                                                    @onclick="() => HandleRevertTimesheet(t.TimesheetId)">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>Trả lại
+                                            </button>
+                                        }
+                                        else if (t.Status == TimesheetStatus.Approved)
+                                        {
+                                            <button type="button" class="btn btn-outline-danger px-2"
+                                                    title="Hủy duyệt để mở lại bảng công điều chỉnh"
+                                                    @onclick="() => HandleRevertTimesheet(t.TimesheetId)">
+                                                <i class="bi bi-unlock me-1"></i>Hủy duyệt
+                                            </button>
+                                        }
+                                        else if (t.Status == TimesheetStatus.Draft)
+                                        {
+                                            <button type="button" class="btn btn-outline-success px-2"
+                                                    title="Duyệt nhanh bảng công này"
+                                                    @onclick="() => HandleApproveTimesheet(t.TimesheetId)">
+                                                <i class="bi bi-check-lg me-1"></i>Duyệt
+                                            </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card card-clean p-5 text-center shadow-sm border-0 bg-white">
+            <i class="bi bi-calendar-x text-muted fs-1 mb-3"></i>
+            <h5 class="fw-bold text-slate-800">Không có bảng công nào trong tháng @_selectedMonth/@_selectedYear</h5>
+            <p class="text-muted small mb-0">Chưa có nhân viên nào khởi tạo bảng công trong tháng này.</p>
+        </div>
+    }
+</div>
+
+<!-- Modal xem & điều chỉnh bảng công -->
+@if (_selectedTimesheetForModal != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header border-bottom pb-2">
+                    <div>
+                        <h5 class="modal-title fw-bold text-slate-900 mb-0">
+                            <i class="bi bi-calendar-check text-primary me-2"></i>Bảng Công: @(_selectedTimesheetForModal.Employee?.FullName) (@($"NV{_selectedTimesheetForModal.EmployeeId:D3}"))
+                        </h5>
+                        <div class="small text-muted">
+                            Trạng thái: 
+                            <strong class="text-primary">@(_selectedTimesheetForModal.Status switch {
+                                TimesheetStatus.Draft => "Bản nháp",
+                                TimesheetStatus.Submitted => "Chờ duyệt",
+                                TimesheetStatus.Approved => "Đã duyệt",
+                                _ => ""
+                            })</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseDetailModal"></button>
+                </div>
+
+                <div class="modal-body p-3">
+                    <div class="alert alert-info py-2 px-3 small mb-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            <strong>Kế toán có quyền hiệu chỉnh:</strong> Bấm trực tiếp vào từng ô ngày trên lịch dưới đây để sửa ngày công nếu thấy sai lệch.
+                        </div>
+                        <span class="badge bg-primary">Nhấp ô để sửa</span>
+                    </div>
+
+                    <!-- Lịch tương tác cho phép Admin bấm vào từng ngày -->
+                    <TimesheetCalendar Month="@_selectedMonth" 
+                                       Year="@_selectedYear" 
+                                       Entries="@_selectedTimesheetForModal.Entries" 
+                                       IsReadOnly="false"
+                                       OnDayClicked="HandleDaySelected" />
+
+                    <!-- Form điều chỉnh 1 ngày khi Kế toán nhấp vào -->
+                    @if (_isEditingDay)
+                    {
+                        <div class="card p-3 mt-3 border-primary border-opacity-50 bg-primary-subtle shadow-sm rounded-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold text-primary mb-0">
+                                    <i class="bi bi-pencil me-1"></i>Điều Chỉnh Ngày: @_editingDate.ToString("dd/MM/yyyy (dddd)")
+                                </h6>
+                                <button type="button" class="btn-close btn-sm" @onclick="() => _isEditingDay = false"></button>
+                            </div>
+
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold text-slate-700 mb-1">Trạng thái công:</label>
+                                    <select class="form-select form-select-sm" @bind="_editingStatus">
+                                        <option value="@TimesheetDayStatus.Working">Đi làm đủ ngày (8h công)</option>
+                                        <option value="@TimesheetDayStatus.PaidLeave">Nghỉ phép hưởng lương (P)</option>
+                                        <option value="@TimesheetDayStatus.UnpaidLeave">Nghỉ không lương (KL)</option>
+                                        <option value="@TimesheetDayStatus.Holiday">Nghỉ lễ theo luật (Lễ)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold text-slate-700 mb-1">Ghi chú điều chỉnh:</label>
+                                    <input type="text" class="form-control form-control-sm" placeholder="VD: Kế toán điều chỉnh công..." @bind="_editingNote" />
+                                </div>
+                                <div class="col-md-2 d-grid">
+                                    <button type="button" class="btn btn-primary btn-sm fw-bold" @onclick="HandleSaveDayAdjustment">
+                                        <i class="bi bi-save me-1"></i>Lưu Ngày
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-footer border-top pt-2 d-flex justify-content-between">
+                    <div>
+                        @if (_selectedTimesheetForModal.Status == TimesheetStatus.Submitted)
+                        {
+                            <button type="button" class="btn btn-outline-warning text-dark btn-sm me-2"
+                                    @onclick="() => HandleRevertTimesheet(_selectedTimesheetForModal.TimesheetId)">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Trả Lại Để Nhân Viên Sửa
+                            </button>
+                        }
+                        else if (_selectedTimesheetForModal.Status == TimesheetStatus.Approved)
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm me-2"
+                                    @onclick="() => HandleRevertTimesheet(_selectedTimesheetForModal.TimesheetId)">
+                                <i class="bi bi-unlock me-1"></i>Hủy Duyệt (Mở Lại)
+                            </button>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseDetailModal">Đóng</button>
+                        @if (_selectedTimesheetForModal.Status != TimesheetStatus.Approved)
+                        {
+                            <button type="button" class="btn btn-success btn-sm fw-bold px-3" 
+                                    @onclick="() => HandleApproveTimesheet(_selectedTimesheetForModal.TimesheetId)">
+                                <i class="bi bi-check-lg me-1"></i>Phê Duyệt Bảng Công Này
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private int _selectedMonth = DateTime.Today.Month;
+    private int _selectedYear = DateTime.Today.Year;
+    private int? _selectedDepartmentId;
+    private TimesheetStatus? _selectedStatus;
+
+    private List<Timesheet> _timesheets = new();
+    private List<Department> _departments = new();
+    private Timesheet? _selectedTimesheetForModal;
+    private int _currentAccountantUserId = 1;
+
+    // Quản lý chỉnh sửa ngày công
+    private bool _isEditingDay = false;
+    private DateTime _editingDate = DateTime.Today;
+    private TimesheetDayStatus _editingStatus = TimesheetDayStatus.Working;
+    private string _editingNote = "Kế toán điều chỉnh công";
+
+    private bool _isLoading = true;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int uid))
+        {
+            _currentAccountantUserId = uid;
+        }
+
+        _departments = (await ViewDepartmentsUseCase.ExecuteAsync()).ToList();
+        await LoadTimesheetsAsync();
+    }
+
+    private async Task LoadTimesheetsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _timesheets = (await ViewAllTimesheetsUseCase.ExecuteAsync(
+                _selectedMonth, 
+                _selectedYear, 
+                _selectedDepartmentId, 
+                _selectedStatus)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenDetailCalendar(Timesheet timesheet)
+    {
+        _selectedTimesheetForModal = timesheet;
+        _isEditingDay = false;
+    }
+
+    private void CloseDetailModal()
+    {
+        _selectedTimesheetForModal = null;
+        _isEditingDay = false;
+    }
+
+    private void HandleDaySelected(DateTime date)
+    {
+        if (_selectedTimesheetForModal == null) return;
+
+        _editingDate = date;
+        var existingEntry = _selectedTimesheetForModal.Entries?.FirstOrDefault(e => e.WorkDate.Date == date.Date);
+        if (existingEntry != null)
+        {
+            _editingStatus = existingEntry.DayStatus;
+            _editingNote = string.IsNullOrEmpty(existingEntry.Note) ? "Kế toán điều chỉnh" : existingEntry.Note;
+        }
+        else
+        {
+            _editingStatus = (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday) 
+                ? TimesheetDayStatus.UnpaidLeave 
+                : TimesheetDayStatus.Working;
+            _editingNote = "Kế toán bổ sung ngày công";
+        }
+
+        _isEditingDay = true;
+    }
+
+    private async Task HandleSaveDayAdjustment()
+    {
+        if (_selectedTimesheetForModal == null) return;
+
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await AdjustTimesheetEntryUseCase.ExecuteAsync(
+                _selectedTimesheetForModal.TimesheetId,
+                _editingDate,
+                _editingStatus,
+                _editingNote);
+
+            _successMessage = $"Đã cập nhật ngày {_editingDate:dd/MM/yyyy} thành '{GetDayStatusName(_editingStatus)}' thành công!";
+            _isEditingDay = false;
+
+            // Nạp lại bảng công để cập nhật lại lịch hiển thị
+            await LoadTimesheetsAsync();
+            _selectedTimesheetForModal = _timesheets.FirstOrDefault(t => t.TimesheetId == _selectedTimesheetForModal.TimesheetId);
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleApproveTimesheet(int timesheetId)
+    {
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await ApproveTimesheetUseCase.ExecuteAsync(timesheetId, _currentAccountantUserId);
+            _successMessage = "Đã phê duyệt bảng công thành công! Nhân viên này đã đủ điều kiện tính lương.";
+            
+            await LoadTimesheetsAsync();
+            if (_selectedTimesheetForModal != null)
+            {
+                _selectedTimesheetForModal = _timesheets.FirstOrDefault(t => t.TimesheetId == timesheetId);
+            }
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleRevertTimesheet(int timesheetId)
+    {
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await RevertTimesheetUseCase.ExecuteAsync(timesheetId);
+            _successMessage = "Đã chuyển bảng công về trạng thái Nháp (Draft). Bảng công đã được mở lại để chỉnh sửa.";
+            
+            await LoadTimesheetsAsync();
+            if (_selectedTimesheetForModal != null)
+            {
+                _selectedTimesheetForModal = _timesheets.FirstOrDefault(t => t.TimesheetId == timesheetId);
+            }
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private string GetDayStatusName(TimesheetDayStatus status) => status switch
+    {
+        TimesheetDayStatus.Working => "Đi làm (8h)",
+        TimesheetDayStatus.PaidLeave => "Nghỉ phép hưởng lương",
+        TimesheetDayStatus.UnpaidLeave => "Nghỉ không lương",
+        TimesheetDayStatus.Holiday => "Nghỉ lễ",
+        _ => status.ToString()
+    };
+}

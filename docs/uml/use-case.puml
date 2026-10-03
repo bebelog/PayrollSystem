@@ -1,0 +1,53 @@
+﻿@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+actor "Nhân Viên (Employee)" as Emp
+actor "Kế Toán (Accountant)" as Acc
+
+rectangle "Hệ Thống Chấm Công & Tính Lương (SmartPayroll)" {
+    package "Phân Hệ Nhân Viên" {
+        usecase "UC01: Chấm công hôm nay" as UC_Punch
+        usecase "UC02: Xem bảng công của mình" as UC_ViewMyTimesheet
+        usecase "UC03: Gửi bảng công để duyệt" as UC_SubmitTimesheet
+        usecase "UC04: Xem phiếu lương của mình" as UC_ViewMyPayslip
+    }
+
+    package "Phân Hệ Kế Toán & Quản Trị" {
+        usecase "UC05: Quản lý nhân sự & Hợp đồng" as UC_ManageEmp
+        usecase "UC06: Xem & Phê duyệt bảng công" as UC_ApproveTimesheet
+        usecase "UC07: Quản lý & Tạo kỳ lương mới" as UC_ManagePeriod
+        usecase "UC08: Tính lương tự động (Luật 1 & 2)" as UC_CalcPayroll
+        usecase "UC09: Chốt kỳ lương (Khóa dữ liệu)" as UC_ClosePeriod
+        usecase "UC10: Xuất bảng lương ra Excel (.xlsx)" as UC_ExportExcel
+        usecase "UC11: Cấu hình trần bảo hiểm & giảm trừ" as UC_Config
+    }
+
+    package "Xác Thực & Phân Quyền" {
+        usecase "UC12: Đăng nhập hệ thống (Cookie Auth)" as UC_Login
+        usecase "UC13: Đăng xuất" as UC_Logout
+    }
+}
+
+Emp --> UC_Login
+Emp --> UC_Logout
+Emp --> UC_Punch
+Emp --> UC_ViewMyTimesheet
+Emp --> UC_SubmitTimesheet
+Emp --> UC_ViewMyPayslip
+
+Acc --> UC_Login
+Acc --> UC_Logout
+Acc --> UC_ManageEmp
+Acc --> UC_ApproveTimesheet
+Acc --> UC_ManagePeriod
+Acc --> UC_CalcPayroll
+Acc --> UC_ClosePeriod
+Acc --> UC_ExportExcel
+Acc --> UC_Config
+
+UC_CalcPayroll ..> UC_ApproveTimesheet : <<requires>>\nBảng công phải Đã duyệt
+UC_ClosePeriod ..> UC_CalcPayroll : <<requires>>\nKỳ phải Đã tính
+@enduml
+

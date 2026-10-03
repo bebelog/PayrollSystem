@@ -1,0 +1,104 @@
+﻿@page "/login"
+@inject NavigationManager Navigation
+
+<PageTitle>Đăng Nhập - SmartPayroll</PageTitle>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 col-lg-5">
+            <!-- Brand Badge -->
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center p-3 rounded-circle bg-primary text-white shadow mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-wallet2 fs-3"></i>
+                </div>
+                <h3 class="fw-bold text-slate-900 mb-1">SmartPayroll</h3>
+                <p class="text-muted small">Hệ Thống Quản Lý Chấm Công &amp; Tính Lương Doanh Nghiệp</p>
+            </div>
+
+            <!-- Card Form -->
+            <div class="card card-clean p-4 shadow-sm border-0" style="border-radius: 14px; background: #ffffff;">
+                <h5 class="fw-bold text-slate-900 mb-3 text-center border-bottom pb-2">
+                    <i class="bi bi-shield-lock text-primary me-2"></i>Đăng Nhập Hệ Thống
+                </h5>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="alert alert-danger py-2 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@_errorMessage
+                    </div>
+                }
+
+                <form method="post" action="/api/account/login">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tên Đăng Nhập</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-person text-secondary"></i></span>
+                            <input type="text" name="username" class="form-control" placeholder="Nhập tên đăng nhập..." @bind="_username" required />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Mật Khẩu</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-key text-secondary"></i></span>
+                            <input type="password" name="password" class="form-control" placeholder="Nhập mật khẩu..." @bind="_password" required />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" style="border-radius: 8px;">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng Nhập
+                    </button>
+                </form>
+
+                <!-- Quick Autofill for Defense Demo -->
+                <div class="mt-4 pt-3 border-top">
+                    <span class="text-muted d-block small mb-2 text-center">Tài khoản mẫu thử nghiệm (Bấm 1-click):</span>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-warning text-dark btn-sm text-start"
+                                @onclick='() => SetAccount("accountant", "admin123")'>
+                            <i class="bi bi-star-fill text-warning me-1"></i><strong>Kế toán (Admin):</strong> accountant / admin123
+                        </button>
+                        <button type="button" class="btn btn-outline-info text-dark btn-sm text-start"
+                                @onclick='() => SetAccount("emp_an", "123")'>
+                            <i class="bi bi-person-fill text-primary me-1"></i><strong>Nhân viên An (Lương 18tr):</strong> emp_an / 123
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary text-dark btn-sm text-start"
+                                @onclick='() => SetAccount("emp_cuong", "123")'>
+                            <i class="bi bi-lightning-charge-fill text-danger me-1"></i><strong>Nhân viên Cường (Lương 65tr vượt trần):</strong> emp_cuong / 123
+                        </button>
+                        <button type="button" class="btn btn-outline-success text-dark btn-sm text-start"
+                                @onclick='() => SetAccount("emp_binh", "123")'>
+                            <i class="bi bi-people-fill text-success me-1"></i><strong>Nhân viên Bình (2 con phụ thuộc):</strong> emp_binh / 123
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Info -->
+            <div class="text-center mt-3 text-muted small">
+                Sinh viên: <strong>Nguyễn Viết Mẫn</strong> (23K4080026) - Trường ĐH Kinh tế, ĐH Huế
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _username = "";
+    private string _password = "";
+    private string? _errorMessage;
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("error", out var error))
+        {
+            _errorMessage = error.ToString();
+        }
+    }
+
+    private void SetAccount(string user, string pass)
+    {
+        _username = user;
+        _password = pass;
+    }
+}

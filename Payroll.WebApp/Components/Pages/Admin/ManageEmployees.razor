@@ -1,0 +1,291 @@
+﻿@page "/admin/employees"
+@attribute [Authorize(Roles = "Accountant")]
+@inject IViewEmployeesUseCase ViewEmployeesUseCase
+@inject ICreateEmployeeUseCase CreateEmployeeUseCase
+@inject IViewDepartmentsUseCase ViewDepartmentsUseCase
+
+<PageTitle>Quản Lý Nhân Viên - SmartPayroll</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom">
+        <div>
+            <h3 class="fw-bold text-slate-900 mb-1">
+                <i class="bi bi-people text-primary me-2"></i>Quản Lý Nhân Viên &amp; Hợp Đồng
+            </h3>
+            <p class="text-muted mb-0">Danh sách nhân sự, hợp đồng lao động và người phụ thuộc giảm trừ gia cảnh.</p>
+        </div>
+
+        <button type="button" class="btn btn-primary px-3 fw-bold" @onclick="() => _showCreateModal = true">
+            <i class="bi bi-person-plus-fill me-1"></i>Thêm Nhân Viên Mới
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Lỗi:</strong> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    <div class="card card-clean p-3 shadow-sm border-0 bg-white mb-4">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-search text-secondary"></i></span>
+                    <input type="text" class="form-control" placeholder="Tìm kiếm theo tên, email, SĐT..."
+                           @bind="_searchTerm" @bind:after="LoadEmployeesAsync" />
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select" @bind="_selectedDepartmentId" @bind:after="LoadEmployeesAsync">
+                    <option value="">-- Tất cả phòng ban --</option>
+                    @foreach (var d in _departments)
+                    {
+                        <option value="@d.DepartmentId">@d.DepartmentName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <button type="button" class="btn btn-outline-secondary w-100" @onclick="LoadEmployeesAsync">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Tải lại
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted small mt-2">Đang tải danh sách nhân viên...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card card-clean shadow-sm border-0 bg-white">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Họ và Tên</th>
+                            <th>Liên Hệ</th>
+                            <th>Phòng Ban</th>
+                            <th>Lương HĐ (VND)</th>
+                            <th>Phụ Cấp</th>
+                            <th>Người Phụ Thuộc</th>
+                            <th>Trạng Thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var emp in _employees)
+                        {
+                            var contract = emp.ActiveContract;
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-slate-900 fs-6">@emp.FullName</div>
+                                    <div class="text-muted" style="font-size: 0.72rem;">CCCD: @emp.IdentityNumber</div>
+                                </td>
+                                <td>
+                                    <div><i class="bi bi-envelope me-1 text-muted"></i>@emp.Email</div>
+                                    <div><i class="bi bi-telephone me-1 text-muted"></i>@emp.PhoneNumber</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary">
+                                        @(emp.Department?.DepartmentName ?? "---")
+                                    </span>
+                                </td>
+                                <td class="fw-bold text-primary">
+                                    @(contract != null ? $"{contract.BaseSalary:N0} đ" : "Chưa có HĐ")
+                                </td>
+                                <td class="text-muted">
+                                    @(contract != null ? $"{contract.Allowance:N0} đ" : "--")
+                                </td>
+                                <td>
+                                    <span class="badge bg-info-subtle text-info border">
+                                        @(emp.Dependents?.Count ?? 0) người
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (emp.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Đang làm việc</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger">Đã nghỉ việc</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (_showCreateModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-3">
+                <div class="modal-header border-bottom pb-2">
+                    <h5 class="modal-title fw-bold text-slate-900">
+                        <i class="bi bi-person-plus text-primary me-2"></i>Thêm Mới Nhân Viên &amp; Hợp Đồng Ban Đầu
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="() => _showCreateModal = false"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <form @onsubmit="HandleCreateEmployee">
+                        <h6 class="fw-bold text-primary mb-2">1. Thông tin cá nhân</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Họ và Tên *</label>
+                                <input type="text" class="form-control form-control-sm" @bind="_newEmployee.FullName" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Phòng Ban *</label>
+                                <select class="form-select form-select-sm" @bind="_newEmployee.DepartmentId" required>
+                                    @foreach (var d in _departments)
+                                    {
+                                        <option value="@d.DepartmentId">@d.DepartmentName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Số CCCD/CMND *</label>
+                                <input type="text" class="form-control form-control-sm" @bind="_newEmployee.IdentityNumber" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Email *</label>
+                                <input type="email" class="form-control form-control-sm" @bind="_newEmployee.Email" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Số Điện Thoại *</label>
+                                <input type="tel" class="form-control form-control-sm" @bind="_newEmployee.PhoneNumber" required />
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold text-primary mb-2 border-top pt-2">2. Hợp đồng lao động ban đầu</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Mã Hợp Đồng *</label>
+                                <input type="text" class="form-control form-control-sm" @bind="_newContract.ContractNumber" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Lương Cơ Bản (VND) *</label>
+                                <input type="number" class="form-control form-control-sm" @bind="_newContract.BaseSalary" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Phụ Cấp (VND)</label>
+                                <input type="number" class="form-control form-control-sm" @bind="_newContract.Allowance" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Ngày Bắt Đầu Hiệu Lực *</label>
+                                <input type="date" class="form-control form-control-sm" @bind="_newContract.EffectiveFrom" required />
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                            <button type="button" class="btn btn-outline-secondary px-3" @onclick="() => _showCreateModal = false">Hủy</button>
+                            <button type="submit" class="btn btn-primary px-4 fw-bold" disabled="@_isSubmitting">
+                                @if (_isSubmitting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Đang lưu...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-1"></i>
+                                    <span>Lưu Nhân Viên</span>
+                                }
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Employee> _employees = new();
+    private List<Department> _departments = new();
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string? _searchTerm;
+    private int? _selectedDepartmentId;
+
+    private bool _showCreateModal;
+    private Employee _newEmployee = new() { HireDate = DateTime.Today };
+    private Contract _newContract = new() { ContractNumber = $"HDLD-{DateTime.Today.Year}-{new Random().Next(100, 999)}", EffectiveFrom = DateTime.Today };
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _departments = (await ViewDepartmentsUseCase.ExecuteAsync()).ToList();
+        if (_departments.Any())
+        {
+            _newEmployee.DepartmentId = _departments.First().DepartmentId;
+        }
+        await LoadEmployeesAsync();
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _employees = (await ViewEmployeesUseCase.ExecuteAsync(_searchTerm, _selectedDepartmentId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleCreateEmployee()
+    {
+        _isSubmitting = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await CreateEmployeeUseCase.ExecuteAsync(_newEmployee, _newContract);
+            _successMessage = $"Thêm mới nhân viên '{_newEmployee.FullName}' thành công!";
+            _showCreateModal = false;
+            _newEmployee = new() { HireDate = DateTime.Today, DepartmentId = _departments.FirstOrDefault()?.DepartmentId ?? 1 };
+            _newContract = new() { ContractNumber = $"HDLD-{DateTime.Today.Year}-{new Random().Next(100, 999)}", EffectiveFrom = DateTime.Today };
+            await LoadEmployeesAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}
