@@ -114,7 +114,7 @@ public class RecordAttendanceTodayUseCase : IRecordAttendanceTodayUseCase
 
         existingEntry.CheckOutTime = now;
         double diffHours = (now - existingEntry.CheckInTime.Value).TotalHours;
-        decimal hours = (diffHours >= 0.5) ? Math.Min(8.0m, Math.Round((decimal)diffHours, 1)) : 8.0m;
+        decimal hours = (diffHours >= 0.1) ? Math.Min(8.0m, Math.Round((decimal)diffHours, 1)) : Math.Max(0.05m, Math.Round((decimal)diffHours, 2));
         existingEntry.WorkingHours = hours;
         existingEntry.Note = $"Vào: {existingEntry.CheckInTime.Value:HH:mm:ss} | Ra: {now:HH:mm:ss} ({hours}h)";
 
