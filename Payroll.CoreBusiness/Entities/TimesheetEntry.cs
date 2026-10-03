@@ -8,6 +8,9 @@ public class TimesheetEntry
     public int TimesheetId { get; set; }
     public DateTime WorkDate { get; set; }
     public TimesheetDayStatus DayStatus { get; set; } = TimesheetDayStatus.Working;
+    public DateTime? CheckInTime { get; set; }
+    public DateTime? CheckOutTime { get; set; }
+    public decimal? WorkingHours { get; set; }
     public string? Note { get; set; }
 
     public Timesheet? Timesheet { get; set; }

@@ -396,6 +396,12 @@
         _errorMessage = null;
         _successMessage = null;
 
+        if (string.IsNullOrWhiteSpace(_editingNote))
+        {
+            _errorMessage = "Kế toán bắt buộc phải ghi rõ lý do điều chỉnh ngày công (VD: Quên chấm công, đi công tác, bổ sung đơn phép...).";
+            return;
+        }
+
         try
         {
             await AdjustTimesheetEntryUseCase.ExecuteAsync(

@@ -8,9 +8,9 @@ namespace Payroll.Plugins.DataStore.Sql;
 
 public class TimesheetRepository : ITimesheetRepository
 {
-    private readonly ISqlConnectionFactory _connectionFactory;
+    private readonly SqlConnectionFactory _connectionFactory;
 
-    public TimesheetRepository(ISqlConnectionFactory connectionFactory)
+    public TimesheetRepository(SqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
@@ -23,7 +23,7 @@ public class TimesheetRepository : ITimesheetRepository
             FROM dbo.Timesheet
             WHERE EmployeeId = @EmployeeId AND Month = @Month AND Year = @Year;
 
-            SELECT EntryId, TimesheetId, WorkDate, DayStatus, Note
+            SELECT EntryId, TimesheetId, WorkDate, DayStatus, CheckInTime, CheckOutTime, WorkingHours, Note
             FROM dbo.TimesheetEntry
             WHERE TimesheetId = (SELECT TimesheetId FROM dbo.Timesheet WHERE EmployeeId = @EmployeeId AND Month = @Month AND Year = @Year)
             ORDER BY WorkDate;";
@@ -50,7 +50,7 @@ public class TimesheetRepository : ITimesheetRepository
             INNER JOIN dbo.Department d ON e.DepartmentId = d.DepartmentId
             WHERE e.EmployeeId = (SELECT EmployeeId FROM dbo.Timesheet WHERE TimesheetId = @TimesheetId);
 
-            SELECT EntryId, TimesheetId, WorkDate, DayStatus, Note
+            SELECT EntryId, TimesheetId, WorkDate, DayStatus, CheckInTime, CheckOutTime, WorkingHours, Note
             FROM dbo.TimesheetEntry
             WHERE TimesheetId = @TimesheetId
             ORDER BY WorkDate;";
@@ -77,7 +77,7 @@ public class TimesheetRepository : ITimesheetRepository
             SELECT t.TimesheetId, t.EmployeeId, t.Month, t.Year, t.Status, t.SubmittedAt, t.ApprovedAt, t.ApprovedByUserId,
                    e.EmployeeId, e.FullName, e.Email, e.DepartmentId,
                    d.DepartmentId, d.DepartmentName,
-                   te.EntryId, te.TimesheetId, te.WorkDate, te.DayStatus, te.Note
+                   te.EntryId, te.TimesheetId, te.WorkDate, te.DayStatus, te.CheckInTime, te.CheckOutTime, te.WorkingHours, te.Note
             FROM dbo.Timesheet t
             INNER JOIN dbo.Employee e ON t.EmployeeId = e.EmployeeId
             INNER JOIN dbo.Department d ON e.DepartmentId = d.DepartmentId
@@ -146,8 +146,8 @@ public class TimesheetRepository : ITimesheetRepository
         {
             await conn.ExecuteAsync("DELETE FROM dbo.TimesheetEntry WHERE TimesheetId = @TimesheetId", new { TimesheetId = timesheetId }, tx);
             const string insertSql = @"
-                INSERT INTO dbo.TimesheetEntry (TimesheetId, WorkDate, DayStatus, Note)
-                VALUES (@TimesheetId, @WorkDate, @DayStatus, @Note);";
+                INSERT INTO dbo.TimesheetEntry (TimesheetId, WorkDate, DayStatus, CheckInTime, CheckOutTime, WorkingHours, Note)
+                VALUES (@TimesheetId, @WorkDate, @DayStatus, @CheckInTime, @CheckOutTime, @WorkingHours, @Note);";
 
             foreach (var e in entries)
             {
@@ -186,7 +186,7 @@ public class TimesheetRepository : ITimesheetRepository
     public async Task<TimesheetEntry?> GetEntryByDateAsync(int timesheetId, DateTime workDate)
     {
         using var conn = _connectionFactory.CreateConnection();
-        const string sql = "SELECT EntryId, TimesheetId, WorkDate, DayStatus, Note FROM dbo.TimesheetEntry WHERE TimesheetId = @TimesheetId AND WorkDate = @WorkDate";
+        const string sql = "SELECT EntryId, TimesheetId, WorkDate, DayStatus, CheckInTime, CheckOutTime, WorkingHours, Note FROM dbo.TimesheetEntry WHERE TimesheetId = @TimesheetId AND WorkDate = @WorkDate";
         return await conn.QueryFirstOrDefaultAsync<TimesheetEntry>(sql, new { TimesheetId = timesheetId, WorkDate = workDate.Date });
     }
 
@@ -197,13 +197,17 @@ public class TimesheetRepository : ITimesheetRepository
             IF EXISTS (SELECT 1 FROM dbo.TimesheetEntry WHERE TimesheetId = @TimesheetId AND WorkDate = @WorkDate)
             BEGIN
                 UPDATE dbo.TimesheetEntry
-                SET DayStatus = @DayStatus, Note = @Note
+                SET DayStatus = @DayStatus,
+                    CheckInTime = COALESCE(@CheckInTime, CheckInTime),
+                    CheckOutTime = COALESCE(@CheckOutTime, CheckOutTime),
+                    WorkingHours = COALESCE(@WorkingHours, WorkingHours),
+                    Note = @Note
                 WHERE TimesheetId = @TimesheetId AND WorkDate = @WorkDate;
             END
             ELSE
             BEGIN
-                INSERT INTO dbo.TimesheetEntry (TimesheetId, WorkDate, DayStatus, Note)
-                VALUES (@TimesheetId, @WorkDate, @DayStatus, @Note);
+                INSERT INTO dbo.TimesheetEntry (TimesheetId, WorkDate, DayStatus, CheckInTime, CheckOutTime, WorkingHours, Note)
+                VALUES (@TimesheetId, @WorkDate, @DayStatus, @CheckInTime, @CheckOutTime, @WorkingHours, @Note);
             END";
 
         await conn.ExecuteAsync(sql, new
@@ -211,6 +215,9 @@ public class TimesheetRepository : ITimesheetRepository
             entry.TimesheetId,
             WorkDate = entry.WorkDate.Date,
             DayStatus = (int)entry.DayStatus,
+            entry.CheckInTime,
+            entry.CheckOutTime,
+            entry.WorkingHours,
             entry.Note
         });
     }
