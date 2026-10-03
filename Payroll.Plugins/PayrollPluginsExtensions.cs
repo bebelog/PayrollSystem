@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Payroll.Plugins.DataStore.Sql;
 using Payroll.Plugins.Exporters;
 using Payroll.Plugins.Security;
@@ -10,7 +10,9 @@ public static class PayrollPluginsExtensions
 {
     public static IServiceCollection AddPayrollSqlPlugins(this IServiceCollection services, string connectionString)
     {
-        services.AddSingleton<ISqlConnectionFactory>(new SqlConnectionFactory(connectionString));
+        var sqlConnFactory = new SqlConnectionFactory(connectionString);
+        services.AddSingleton<ISqlConnectionFactory>(sqlConnFactory);
+        services.AddSingleton<SqlConnectionFactory>(sqlConnFactory);
 
         services.AddScoped<IDepartmentRepository, DepartmentRepository>();
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();

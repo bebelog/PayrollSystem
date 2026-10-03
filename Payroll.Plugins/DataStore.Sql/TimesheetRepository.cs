@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using Dapper;
 using Payroll.CoreBusiness.Entities;
 using Payroll.CoreBusiness.Enums;
@@ -8,9 +8,9 @@ namespace Payroll.Plugins.DataStore.Sql;
 
 public class TimesheetRepository : ITimesheetRepository
 {
-    private readonly SqlConnectionFactory _connectionFactory;
+    private readonly ISqlConnectionFactory _connectionFactory;
 
-    public TimesheetRepository(SqlConnectionFactory connectionFactory)
+    public TimesheetRepository(ISqlConnectionFactory connectionFactory)
     {
         _connectionFactory = connectionFactory;
     }
