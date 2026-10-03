@@ -7,9 +7,10 @@
 @inject IViewMyPayslipUseCase ViewMyPayslipUseCase
 @inject IRecordAttendanceTodayUseCase RecordAttendanceTodayUseCase
 @inject IViewEmployeesUseCase ViewEmployeesUseCase
+@inject IGetEmployeeByIdUseCase GetEmployeeByIdUseCase
 @inject NavigationManager Navigation
 
-<PageTitle>Trang Chủ - SmartPayroll</PageTitle>
+<PageTitle>Trang Chá»§ - SmartPayroll</PageTitle>
 
 <div class="container py-4">
     @if (!string.IsNullOrEmpty(_successMessage))
@@ -23,24 +24,24 @@
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Thông báo:</strong> @_errorMessage
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>ThÃ´ng bÃ¡o:</strong> @_errorMessage
             <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
         </div>
     }
 
     @if (_isAccountant)
     {
-        <!-- ==================== GIAO DIỆN KẾ TOÁN (ADMIN) ==================== -->
+        <!-- ==================== GIAO DIá»†N Káº¾ TOÃN (ADMIN) ==================== -->
         <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
             <div>
                 <h3 class="fw-bold text-slate-900 mb-1">
-                    <i class="bi bi-speedometer2 text-primary me-2"></i>Bảng Điều Khiển Kế Toán &amp; Nhân Sự
+                    <i class="bi bi-speedometer2 text-primary me-2"></i>Báº£ng Äiá»u Khiá»ƒn Káº¿ ToÃ¡n &amp; NhÃ¢n Sá»±
                 </h3>
-                <p class="text-muted mb-0">Hệ thống tính toán lương, chấm công và kiểm soát ngân sách nhân sự.</p>
+                <p class="text-muted mb-0">Há»‡ thá»‘ng tÃ­nh toÃ¡n lÆ°Æ¡ng, cháº¥m cÃ´ng vÃ  kiá»ƒm soÃ¡t ngÃ¢n sÃ¡ch nhÃ¢n sá»±.</p>
             </div>
             <div class="d-flex gap-2">
                 <a href="admin/payroll" class="btn btn-primary px-3 fw-bold">
-                    <i class="bi bi-cash-stack me-1"></i>Vào Kỳ Lương
+                    <i class="bi bi-cash-stack me-1"></i>VÃ o Ká»³ LÆ°Æ¡ng
                 </a>
             </div>
         </div>
@@ -51,7 +52,7 @@
                 <div class="card card-clean p-3 shadow-sm border-0 bg-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small d-block">Tổng Nhân Viên</span>
+                            <span class="text-muted small d-block">Tá»•ng NhÃ¢n ViÃªn</span>
                             <h3 class="fw-bold text-slate-900 mb-0">@_employeeCount</h3>
                         </div>
                         <div class="rounded-circle p-3 bg-primary-subtle text-primary">
@@ -59,7 +60,7 @@
                         </div>
                     </div>
                     <div class="mt-2 text-muted" style="font-size: 0.78rem;">
-                        <a href="admin/employees" class="text-decoration-none text-primary">Xem danh sách &rarr;</a>
+                        <a href="admin/employees" class="text-decoration-none text-primary">Xem danh sÃ¡ch &rarr;</a>
                     </div>
                 </div>
             </div>
@@ -68,7 +69,7 @@
                 <div class="card card-clean p-3 shadow-sm border-0 bg-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small d-block">Bảng Công Chờ Duyệt</span>
+                            <span class="text-muted small d-block">Báº£ng CÃ´ng Chá» Duyá»‡t</span>
                             <h3 class="fw-bold text-warning mb-0">@_pendingTimesheetCount</h3>
                         </div>
                         <div class="rounded-circle p-3 bg-warning-subtle text-warning">
@@ -76,7 +77,7 @@
                         </div>
                     </div>
                     <div class="mt-2 text-muted" style="font-size: 0.78rem;">
-                        <a href="admin/timesheets" class="text-decoration-none text-warning">Duyệt ngay &rarr;</a>
+                        <a href="admin/timesheets" class="text-decoration-none text-warning">Duyá»‡t ngay &rarr;</a>
                     </div>
                 </div>
             </div>
@@ -85,9 +86,9 @@
                 <div class="card card-clean p-3 shadow-sm border-0 bg-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small d-block">Kỳ Lương Gần Nhất</span>
+                            <span class="text-muted small d-block">Ká»³ LÆ°Æ¡ng Gáº§n Nháº¥t</span>
                             <h4 class="fw-bold text-primary mb-0">
-                                @(_latestPeriod != null ? $"Tháng {_latestPeriod.Month}/{_latestPeriod.Year}" : "--")
+                                @(_latestPeriod != null ? $"ThÃ¡ng {_latestPeriod.Month}/{_latestPeriod.Year}" : "--")
                             </h4>
                         </div>
                         <div class="rounded-circle p-3 bg-info-subtle text-info">
@@ -95,13 +96,13 @@
                         </div>
                     </div>
                     <div class="mt-2 text-muted" style="font-size: 0.78rem;">
-                        Trạng thái: 
+                        Tráº¡ng thÃ¡i: 
                         <strong class="text-slate-800">
                             @(_latestPeriod?.Status switch {
-                                PayrollPeriodStatus.Open => "Mở (Chưa tính)",
-                                PayrollPeriodStatus.Calculated => "Đã tính (Chờ chốt)",
-                                PayrollPeriodStatus.Closed => "Đã chốt",
-                                _ => "Chưa có"
+                                PayrollPeriodStatus.Open => "Má»Ÿ (ChÆ°a tÃ­nh)",
+                                PayrollPeriodStatus.Calculated => "ÄÃ£ tÃ­nh (Chá» chá»‘t)",
+                                PayrollPeriodStatus.Closed => "ÄÃ£ chá»‘t",
+                                _ => "ChÆ°a cÃ³"
                             })
                         </strong>
                     </div>
@@ -112,7 +113,7 @@
                 <div class="card card-clean p-3 shadow-sm border-0 bg-white">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small d-block">Quy Định Mẫu</span>
+                            <span class="text-muted small d-block">Quy Äá»‹nh Máº«u</span>
                             <h5 class="fw-bold text-success mb-0">BHXH 8%, BHYT 1.5%</h5>
                         </div>
                         <div class="rounded-circle p-3 bg-success-subtle text-success">
@@ -120,7 +121,7 @@
                         </div>
                     </div>
                     <div class="mt-2 text-muted" style="font-size: 0.78rem;">
-                        <a href="admin/settings" class="text-decoration-none text-success">Xem cấu hình lương &rarr;</a>
+                        <a href="admin/settings" class="text-decoration-none text-success">Xem cáº¥u hÃ¬nh lÆ°Æ¡ng &rarr;</a>
                     </div>
                 </div>
             </div>
@@ -131,36 +132,36 @@
             <div class="col-md-6">
                 <div class="card card-clean p-4 shadow-sm border-0 bg-white h-100">
                     <h5 class="fw-bold text-slate-900 mb-3 border-bottom pb-2">
-                        <i class="bi bi-lightning-charge text-warning me-2"></i>Quy Trình Tính Lương Tháng (4 Bước)
+                        <i class="bi bi-lightning-charge text-warning me-2"></i>Quy TrÃ¬nh TÃ­nh LÆ°Æ¡ng ThÃ¡ng (4 BÆ°á»›c)
                     </h5>
                     <ol class="list-group list-group-numbered list-group-flush small">
                         <li class="list-group-item d-flex justify-content-between align-items-start px-0">
                             <div class="ms-2 me-auto">
-                                <div class="fw-bold">Tạo hoặc Mở kỳ lương mới</div>
-                                Nhập tháng/năm và ngày công chuẩn của tháng (ví dụ 22 ngày).
+                                <div class="fw-bold">Táº¡o hoáº·c Má»Ÿ ká»³ lÆ°Æ¡ng má»›i</div>
+                                Nháº­p thÃ¡ng/nÄƒm vÃ  ngÃ y cÃ´ng chuáº©n cá»§a thÃ¡ng (vÃ­ dá»¥ 22 ngÃ y).
                             </div>
-                            <span class="badge bg-primary-subtle text-primary">Bước 1</span>
+                            <span class="badge bg-primary-subtle text-primary">BÆ°á»›c 1</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-start px-0">
                             <div class="ms-2 me-auto">
-                                <div class="fw-bold">Kiểm tra &amp; Duyệt bảng công</div>
-                                Bảng công nhân viên phải ở trạng thái <strong>Đã duyệt</strong> mới được tính lương.
+                                <div class="fw-bold">Kiá»ƒm tra &amp; Duyá»‡t báº£ng cÃ´ng</div>
+                                Báº£ng cÃ´ng nhÃ¢n viÃªn pháº£i á»Ÿ tráº¡ng thÃ¡i <strong>ÄÃ£ duyá»‡t</strong> má»›i Ä‘Æ°á»£c tÃ­nh lÆ°Æ¡ng.
                             </div>
-                            <span class="badge bg-warning-subtle text-warning">Bước 2</span>
+                            <span class="badge bg-warning-subtle text-warning">BÆ°á»›c 2</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-start px-0">
                             <div class="ms-2 me-auto">
-                                <div class="fw-bold">Bấm "Tính Lương Tự Động"</div>
-                                Hệ thống áp dụng <strong>Luật 1</strong> (bảo hiểm, thuế TNCN lũy tiến, snapshot dòng).
+                                <div class="fw-bold">Báº¥m "TÃ­nh LÆ°Æ¡ng Tá»± Äá»™ng"</div>
+                                Há»‡ thá»‘ng Ã¡p dá»¥ng <strong>Luáº­t 1</strong> (báº£o hiá»ƒm, thuáº¿ TNCN lÅ©y tiáº¿n, snapshot Ä‘Ã³ng).
                             </div>
-                            <span class="badge bg-info-subtle text-info">Bước 3</span>
+                            <span class="badge bg-info-subtle text-info">BÆ°á»›c 3</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-start px-0">
                             <div class="ms-2 me-auto">
-                                <div class="fw-bold">Chốt kỳ lương &amp; Xuất file Excel</div>
-                                Khóa toàn bộ dữ liệu kỳ lương và tải file bảng thanh toán lương.
+                                <div class="fw-bold">Chá»‘t ká»³ lÆ°Æ¡ng &amp; Xuáº¥t file Excel</div>
+                                KhÃ³a toÃ n bá»™ dá»¯ liá»‡u ká»³ lÆ°Æ¡ng vÃ  táº£i file báº£ng thanh toÃ¡n lÆ°Æ¡ng.
                             </div>
-                            <span class="badge bg-success-subtle text-success">Bước 4</span>
+                            <span class="badge bg-success-subtle text-success">BÆ°á»›c 4</span>
                         </li>
                     </ol>
                 </div>
@@ -169,7 +170,7 @@
             <div class="col-md-6">
                 <div class="card card-clean p-4 shadow-sm border-0 bg-white h-100">
                     <h5 class="fw-bold text-slate-900 mb-3 border-bottom pb-2">
-                        <i class="bi bi-clock-history text-primary me-2"></i>Danh Sách Kỳ Lương Gần Đây
+                        <i class="bi bi-clock-history text-primary me-2"></i>Danh SÃ¡ch Ká»³ LÆ°Æ¡ng Gáº§n ÄÃ¢y
                     </h5>
                     @if (_periods.Any())
                     {
@@ -177,34 +178,34 @@
                             <table class="table table-hover align-middle small mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Kỳ Lương</th>
-                                        <th>Công Chuẩn</th>
-                                        <th>Trạng Thái</th>
-                                        <th class="text-end">Thao Tác</th>
+                                        <th>Ká»³ LÆ°Æ¡ng</th>
+                                        <th>CÃ´ng Chuáº©n</th>
+                                        <th>Tráº¡ng ThÃ¡i</th>
+                                        <th class="text-end">Thao TÃ¡c</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var p in _periods.Take(4))
                                     {
                                         <tr>
-                                            <td><strong>Tháng @p.Month/@p.Year</strong></td>
-                                            <td>@p.StandardWorkingDays ngày</td>
+                                            <td><strong>ThÃ¡ng @p.Month/@p.Year</strong></td>
+                                            <td>@p.StandardWorkingDays ngÃ y</td>
                                             <td>
                                                 @switch (p.Status)
                                                 {
                                                     case PayrollPeriodStatus.Open:
-                                                        <span class="badge bg-secondary-subtle text-secondary">Mở</span>
+                                                        <span class="badge bg-secondary-subtle text-secondary">Má»Ÿ</span>
                                                         break;
                                                     case PayrollPeriodStatus.Calculated:
-                                                        <span class="badge bg-primary-subtle text-primary">Đã tính</span>
+                                                        <span class="badge bg-primary-subtle text-primary">ÄÃ£ tÃ­nh</span>
                                                         break;
                                                     case PayrollPeriodStatus.Closed:
-                                                        <span class="badge bg-success-subtle text-success">Đã chốt</span>
+                                                        <span class="badge bg-success-subtle text-success">ÄÃ£ chá»‘t</span>
                                                         break;
                                                 }
                                             </td>
                                             <td class="text-end">
-                                                <a href="admin/payroll" class="btn btn-outline-primary btn-sm py-0 px-2">Chi tiết</a>
+                                                <a href="admin/payroll" class="btn btn-outline-primary btn-sm py-0 px-2">Chi tiáº¿t</a>
                                             </td>
                                         </tr>
                                     }
@@ -214,7 +215,7 @@
                     }
                     else
                     {
-                        <p class="text-muted small text-center py-4">Chưa có kỳ lương nào được tạo.</p>
+                        <p class="text-muted small text-center py-4">ChÆ°a cÃ³ ká»³ lÆ°Æ¡ng nÃ o Ä‘Æ°á»£c táº¡o.</p>
                     }
                 </div>
             </div>
@@ -222,45 +223,109 @@
     }
     else
     {
-        <!-- ==================== GIAO DIỆN NHÂN VIÊN ==================== -->
-        <div class="row g-4">
+        <!-- ==================== GIAO DIá»†N NHÃ‚N VIÃŠN ==================== -->
+        <div class="row g-4 mb-4">
             <!-- Left Column: Punch In & Attendance -->
-            <div class="col-lg-6">
-                <!-- Today Punch In Banner -->
-                <div class="card card-clean p-4 shadow-sm border-0 bg-white mb-4">
+            <div class="col-lg-7">
+                <div class="card card-clean p-4 shadow-sm border-0 bg-white h-100">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div>
-                            <span class="text-muted small">Xin chào,</span>
-                            <h4 class="fw-bold text-slate-900 mb-0">@_currentUserName</h4>
+                            <span class="text-muted small">Xin chÃ o,</span>
+                            <h4 class="fw-bold text-slate-900 mb-0">@(_currentEmployee?.FullName ?? _currentUserName)</h4>
+                            <div class="d-flex gap-2 mt-1">
+                                <span class="badge bg-primary-subtle text-primary">NhÃ¢n viÃªn chÃ­nh thá»©c</span>
+                                @if (_currentEmployee?.Department != null)
+                                {
+                                    <span class="badge bg-secondary-subtle text-secondary">@_currentEmployee.Department.DepartmentName</span>
+                                }
+                            </div>
                         </div>
-                        <span class="badge bg-primary-subtle text-primary px-3 py-2 fs-6">
-                            @DateTime.Today.ToString("dddd, dd/MM/yyyy")
-                        </span>
+                        <div class="text-end">
+                            <span class="badge bg-light text-dark border px-3 py-2 fs-6">
+                                <i class="bi bi-calendar-event text-primary me-1"></i>@DateTime.Today.ToString("dddd, dd/MM/yyyy")
+                            </span>
+                            <div class="small text-muted mt-1">Ca hÃ nh chÃ­nh: 08:00 - 17:00</div>
+                        </div>
                     </div>
 
-                    <div class="p-3 rounded bg-light border mb-3">
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h6 class="fw-bold text-slate-800 mb-0">
-                                <i class="bi bi-fingerprint text-primary me-2"></i>Chấm Công Hôm Nay (@DateTime.Today.ToString("dd/MM/yyyy"))
-                            </h6>
-                            <span class="badge bg-secondary-subtle text-secondary small">Không sửa ngày quá khứ</span>
+                    <!-- Mode Toggle: Realtime vs Tá»± chá»n giá» (Demo) -->
+                    <div class="d-flex align-items-center justify-content-between p-2 mb-3 bg-light rounded border">
+                        <span class="small fw-bold text-slate-700">
+                            <i class="bi bi-sliders2 text-primary me-1"></i>Cháº¿ Ä‘á»™ cháº¥m cÃ´ng:
+                        </span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn @(!_isCustomTimeMode ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _isCustomTimeMode = false">
+                                <i class="bi bi-clock me-1"></i>Giá» hiá»‡n táº¡i
+                            </button>
+                            <button type="button" class="btn @(_isCustomTimeMode ? "btn-primary" : "btn-outline-secondary")" @onclick="() => _isCustomTimeMode = true">
+                                <i class="bi bi-pencil-square me-1"></i>Tá»± chá»n giá» (Demo)
+                            </button>
                         </div>
+                    </div>
 
+                    @if (_isCustomTimeMode)
+                    {
+                        <!-- Tá»± chá»n giá» panel -->
+                        <div class="p-3 bg-primary-subtle bg-opacity-10 border border-primary-subtle rounded mb-3">
+                            <div class="fw-bold text-primary small mb-2">
+                                <i class="bi bi-clock-history me-1"></i>TÃ¹y chá»‰nh giá» lÃ m viá»‡c hÃ´m nay:
+                            </div>
+                            <div class="row g-2 align-items-end mb-2">
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-1 fw-bold text-slate-700">Giá» vÃ o:</label>
+                                    <input type="time" class="form-control form-control-sm" @bind="_customCheckInTime" />
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label small mb-1 fw-bold text-slate-700">Giá» ra:</label>
+                                    <input type="time" class="form-control form-control-sm" @bind="_customCheckOutTime" />
+                                </div>
+                                <div class="col-sm-4">
+                                    <button type="button" class="btn btn-primary btn-sm w-100 fw-bold py-2 shadow-sm"
+                                            disabled="@_isSubmitting"
+                                            @onclick="HandleCustomShiftToday">
+                                        <i class="bi bi-check2-circle me-1"></i>LÆ°u ca lÃ m nÃ y
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-1 align-items-center pt-2 border-top">
+                                <span class="small text-muted me-1">Chá»n nhanh:</span>
+                                <button type="button" class="btn btn-outline-success btn-sm py-0 px-2" @onclick="() => SetPresetShift(8, 0, 17, 0)">
+                                    âš¡ Ca chuáº©n 8h (08:00 - 17:00)
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2" @onclick="() => SetPresetShift(8, 45, 17, 0)">
+                                    âš ï¸ Äi trá»… 45p (08:45 - 17:00)
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm py-0 px-2" @onclick="() => SetPresetShift(8, 0, 19, 30)">
+                                    ðŸš€ TÄƒng ca (08:00 - 19:30)
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Punch Actions & Current Status -->
+                    <div class="p-3 rounded bg-light border mb-3">
                         @if (_todayEntry != null && _todayEntry.CheckInTime.HasValue && _todayEntry.CheckOutTime.HasValue)
                         {
                             <div class="alert alert-success d-flex align-items-center justify-content-between py-2 px-3 mb-0">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="bi bi-check-circle-fill text-success fs-4"></i>
                                     <div>
-                                        <div class="fw-bold text-success">Đã hoàn tất ngày công hôm nay!</div>
+                                        <div class="fw-bold text-success">ÄÃ£ hoÃ n táº¥t ngÃ y cÃ´ng hÃ´m nay!</div>
                                         <div class="small text-muted">
-                                            Vào: <strong>@_todayEntry.CheckInTime.Value.ToString("HH:mm:ss")</strong> | 
+                                            VÃ o: <strong>@_todayEntry.CheckInTime.Value.ToString("HH:mm:ss")</strong> | 
                                             Ra: <strong>@_todayEntry.CheckOutTime.Value.ToString("HH:mm:ss")</strong> | 
-                                            Thời gian: <strong>@_todayEntry.WorkingHours giờ công</strong>
+                                            Sá»‘ giá» cÃ´ng: <strong>@_todayEntry.WorkingHours giá»</strong>
                                         </div>
                                     </div>
                                 </div>
-                                <span class="badge bg-success">Đủ 8h công</span>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <span class="badge @(_todayEntry.WorkingHours >= 7.5m ? "bg-success" : "bg-warning text-dark")">
+                                        @(_todayEntry.WorkingHours >= 7.5m ? "Äá»§ cÃ´ng (8h)" : $"{_todayEntry.WorkingHours}h cÃ´ng")
+                                    </span>
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2" @onclick="() => _isCustomTimeMode = true" title="Chá»n láº¡i giá» khÃ¡c">
+                                        <i class="bi bi-pencil me-1"></i>Äá»•i giá»
+                                    </button>
+                                </div>
                             </div>
                         }
                         else if (_todayEntry != null && _todayEntry.CheckInTime.HasValue)
@@ -268,23 +333,14 @@
                             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 p-2 bg-white rounded border">
                                 <div>
                                     <div class="text-success fw-bold">
-                                        <i class="bi bi-box-arrow-in-right me-1"></i>Đã Chấm Công Vào: @_todayEntry.CheckInTime.Value.ToString("HH:mm:ss")
+                                        <i class="bi bi-box-arrow-in-right me-1"></i>ÄÃ£ Cháº¥m CÃ´ng VÃ o: @_todayEntry.CheckInTime.Value.ToString("HH:mm:ss")
                                     </div>
-                                    <div class="small text-muted">Đang trong ca làm việc. Đừng quên bấm Chấm công ra khi tan làm!</div>
+                                    <div class="small text-muted">Äang trong ca lÃ m viá»‡c. Äá»«ng quÃªn báº¥m Cháº¥m cÃ´ng ra khi tan lÃ m!</div>
                                 </div>
                                 <button type="button" class="btn btn-primary btn-sm px-4 py-2 fw-bold shadow-sm"
                                         disabled="@_isSubmitting"
                                         @onclick="HandlePunchOutToday">
-                                    @if (_isSubmitting)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-1"></span>
-                                        <span>Đang ghi nhận...</span>
-                                    }
-                                    else
-                                    {
-                                        <i class="bi bi-box-arrow-right me-1"></i>
-                                        <span>Chấm Công Ra (Check-out)</span>
-                                    }
+                                    <i class="bi bi-box-arrow-right me-1"></i>Cháº¥m CÃ´ng Ra
                                 </button>
                             </div>
                         }
@@ -293,62 +349,103 @@
                             <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 p-2 bg-white rounded border">
                                 <div>
                                     <div class="text-slate-800 fw-bold">
-                                        <i class="bi bi-clock me-1"></i>Chưa ghi nhận giờ vào hôm nay
+                                        <i class="bi bi-clock me-1"></i>ChÆ°a ghi nháº­n giá» vÃ o hÃ´m nay
                                     </div>
-                                    <div class="small text-muted">Bấm nút bên cạnh để bắt đầu ghi nhận giờ làm việc hôm nay.</div>
+                                    <div class="small text-muted">Báº¥m nÃºt bÃªn cáº¡nh Ä‘á»ƒ báº¯t Ä‘áº§u ghi nháº­n giá» lÃ m viá»‡c hÃ´m nay.</div>
                                 </div>
                                 <button type="button" class="btn btn-success btn-sm px-4 py-2 fw-bold shadow-sm"
                                         disabled="@_isSubmitting"
                                         @onclick="HandlePunchInToday">
-                                    @if (_isSubmitting)
-                                    {
-                                        <span class="spinner-border spinner-border-sm me-1"></span>
-                                        <span>Đang ghi nhận...</span>
-                                    }
-                                    else
-                                    {
-                                        <i class="bi bi-box-arrow-in-right me-1"></i>
-                                        <span>Chấm Công Vào (Check-in)</span>
-                                    }
+                                    <i class="bi bi-box-arrow-in-right me-1"></i>Cháº¥m CÃ´ng VÃ o
                                 </button>
                             </div>
                         }
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center small text-muted">
-                        <span>Bảng công tháng: <strong>@DateTime.Today.Month/@DateTime.Today.Year</strong></span>
-                        <a href="my-timesheet" class="text-primary text-decoration-none fw-bold">Xem toàn bộ bảng công &rarr;</a>
+                        <span>Báº£ng cÃ´ng thÃ¡ng: <strong>@DateTime.Today.Month/@DateTime.Today.Year</strong></span>
+                        <a href="my-timesheet" class="text-primary text-decoration-none fw-bold">Xem toÃ n bá»™ báº£ng cÃ´ng &rarr;</a>
                     </div>
                 </div>
+            </div>
 
-                <!-- Monthly Attendance Calendar -->
+            <!-- Right Column: Summary Stats & Quick Access -->
+            <div class="col-lg-5">
+                <div class="card card-clean p-4 shadow-sm border-0 bg-white h-100 d-flex flex-column">
+                    <h5 class="fw-bold text-slate-900 mb-3 border-bottom pb-2">
+                        <i class="bi bi-pie-chart text-primary me-2"></i>Tá»•ng Quan ThÃ¡ng @DateTime.Today.Month/@DateTime.Today.Year
+                    </h5>
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center border">
+                                <div class="text-muted small">NgÃ y Ä‘i lÃ m</div>
+                                <div class="fs-4 fw-bold text-success">@(_myTimesheet?.Entries.Count(e => e.DayStatus == TimesheetDayStatus.Working) ?? 0)</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center border">
+                                <div class="text-muted small">Tá»•ng giá» cÃ´ng</div>
+                                <div class="fs-4 fw-bold text-primary">@(_myTimesheet?.Entries.Where(e => e.DayStatus == TimesheetDayStatus.Working).Sum(e => e.WorkingHours ?? 0) ?? 0)h</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center border">
+                                <div class="text-muted small">Nghá»‰ phÃ©p</div>
+                                <div class="fs-4 fw-bold text-warning">@(_myTimesheet?.Entries.Count(e => e.DayStatus == TimesheetDayStatus.PaidLeave) ?? 0)</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded text-center border">
+                                <div class="text-muted small">Tráº¡ng thÃ¡i cÃ´ng</div>
+                                <div class="fs-6 fw-bold mt-1 text-slate-700">
+                                    @(_myTimesheet?.Status switch {
+                                        TimesheetStatus.Draft => "Äang cháº¥m",
+                                        TimesheetStatus.Submitted => "ÄÃ£ gá»­i",
+                                        TimesheetStatus.Approved => "ÄÃ£ duyá»‡t",
+                                        _ => "Má»›i táº¡o"
+                                    })
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-top pt-3 mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small text-slate-800">
+                                <i class="bi bi-receipt text-primary me-1"></i>Phiáº¿u lÆ°Æ¡ng gáº§n nháº¥t:
+                            </span>
+                            <a href="my-payslip" class="btn btn-outline-primary btn-sm py-0 px-2">Xem chi tiáº¿t</a>
+                        </div>
+                        @if (_latestPayslip != null)
+                        {
+                            <div class="p-2 bg-light rounded border small">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>Ká»³ lÆ°Æ¡ng:</span>
+                                    <strong>ThÃ¡ng @_latestPeriod?.Month/@_latestPeriod?.Year</strong>
+                                </div>
+                                <div class="d-flex justify-content-between text-success fw-bold">
+                                    <span>Thá»±c lÄ©nh:</span>
+                                    <span>@_latestPayslip.NetSalary.ToString("N0") Ä‘</span>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="p-3 bg-light rounded border text-center text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>ChÆ°a cÃ³ phiáº¿u lÆ°Æ¡ng Ä‘Æ°á»£c chá»‘t cho ká»³ nÃ y.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Full-Width Monthly Attendance Calendar -->
+            <div class="col-12">
                 <TimesheetCalendar Month="@DateTime.Today.Month" 
                                    Year="@DateTime.Today.Year" 
                                    Entries="@_myTimesheet?.Entries" 
                                    IsReadOnly="true" />
-            </div>
-
-            <!-- Right Column: Latest Payslip -->
-            <div class="col-lg-6">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="fw-bold text-slate-900 mb-0">
-                        <i class="bi bi-receipt text-primary me-2"></i>Phiếu Lương Gần Nhất Của Bạn
-                    </h5>
-                    <a href="my-payslip" class="btn btn-outline-primary btn-sm px-3">Lịch sử lương</a>
-                </div>
-
-                @if (_latestPayslip != null)
-                {
-                    <PayslipCard Payslip="@_latestPayslip" ShowDetailedLines="false" />
-                }
-                else
-                {
-                    <div class="card card-clean p-5 text-center shadow-sm border-0 bg-white">
-                        <i class="bi bi-inbox text-muted fs-1 mb-3"></i>
-                        <h6 class="fw-bold text-slate-800">Chưa có phiếu lương được tính</h6>
-                        <p class="text-muted small mb-0">Kế toán chưa chốt kỳ lương của tháng này hoặc bạn mới vào làm.</p>
-                    </div>
-                }
             </div>
         </div>
     }
@@ -358,6 +455,7 @@
     private bool _isAccountant;
     private string _currentUserName = "";
     private int? _currentEmployeeId;
+    private Employee? _currentEmployee;
 
     private int _employeeCount;
     private int _pendingTimesheetCount;
@@ -367,11 +465,15 @@
     private Timesheet? _myTimesheet;
     private Payslip? _latestPayslip;
 
-        private TimesheetEntry? _todayEntry;
-    private bool _todayPunched;
+    private TimesheetEntry? _todayEntry;
     private bool _isSubmitting;
     private string? _successMessage;
     private string? _errorMessage;
+
+    // Custom Time Mode for Demo / Simulation
+    private bool _isCustomTimeMode = false;
+    private TimeOnly _customCheckInTime = new TimeOnly(8, 0);
+    private TimeOnly _customCheckOutTime = new TimeOnly(17, 0);
 
     protected override async Task OnInitializedAsync()
     {
@@ -387,6 +489,7 @@
             if (empIdClaim != null && int.TryParse(empIdClaim.Value, out int empId))
             {
                 _currentEmployeeId = empId;
+                _currentEmployee = await GetEmployeeByIdUseCase.ExecuteAsync(empId);
             }
 
             await LoadDataAsync();
@@ -420,20 +523,74 @@
                 _myTimesheet = await ViewMyTimesheetUseCase.ExecuteAsync(empId, UserRole.Employee, empId, curMonth, curYear);
                 if (_myTimesheet != null)
                 {
-                    var todayEntry = _myTimesheet.Entries.FirstOrDefault(e => e.WorkDate.Date == DateTime.Today);
-                                        _todayEntry = todayEntry;
-                    _todayPunched = (todayEntry != null && todayEntry.DayStatus == TimesheetDayStatus.Working);
+                    _todayEntry = _myTimesheet.Entries.FirstOrDefault(e => e.WorkDate.Date == DateTime.Today);
+                    if (_todayEntry != null && _todayEntry.CheckInTime.HasValue)
+                    {
+                        _customCheckInTime = TimeOnly.FromDateTime(_todayEntry.CheckInTime.Value);
+                    }
+                    if (_todayEntry != null && _todayEntry.CheckOutTime.HasValue)
+                    {
+                        _customCheckOutTime = TimeOnly.FromDateTime(_todayEntry.CheckOutTime.Value);
+                    }
                 }
 
-                if (_latestPeriod != null)
+                // Find latest period with actual payslip
+                foreach (var p in _periods.OrderByDescending(p => p.Year).ThenByDescending(p => p.Month))
                 {
-                    _latestPayslip = await ViewMyPayslipUseCase.ExecuteAsync(empId, UserRole.Employee, empId, _latestPeriod.PeriodId);
+                    var slip = await ViewMyPayslipUseCase.ExecuteAsync(empId, UserRole.Employee, empId, p.PeriodId);
+                    if (slip != null)
+                    {
+                        _latestPayslip = slip;
+                        _latestPeriod = p;
+                        break;
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
+        }
+    }
+
+    private void SetPresetShift(int inH, int inM, int outH, int outM)
+    {
+        _customCheckInTime = new TimeOnly(inH, inM);
+        _customCheckOutTime = new TimeOnly(outH, outM);
+        _isCustomTimeMode = true;
+    }
+
+    private async Task HandleCustomShiftToday()
+    {
+        if (!_currentEmployeeId.HasValue) return;
+
+        _isSubmitting = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var entry = await RecordAttendanceTodayUseCase.RecordShiftTodayAsync(
+                _currentEmployeeId.Value, 
+                _customCheckInTime.ToTimeSpan(), 
+                _customCheckOutTime.ToTimeSpan()
+            );
+
+            _successMessage = $"LÆ°u ca lÃ m viá»‡c hÃ´m nay thÃ nh cÃ´ng! VÃ o: {_customCheckInTime:HH:mm} | Ra: {_customCheckOutTime:HH:mm} ({entry.WorkingHours}h cÃ´ng).";
+            _isCustomTimeMode = false;
+            await LoadDataAsync();
+        }
+        catch (BusinessRuleException brex)
+        {
+            _errorMessage = brex.Message;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Lá»—i há»‡ thá»‘ng: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
         }
     }
 
@@ -447,8 +604,9 @@
 
         try
         {
-            var entry = await RecordAttendanceTodayUseCase.CheckInTodayAsync(_currentEmployeeId.Value);
-            _successMessage = $"Chấm công VÀO thành công lúc {entry.CheckInTime:HH:mm:ss}!";
+            DateTime? customIn = _isCustomTimeMode ? DateTime.Today.Add(_customCheckInTime.ToTimeSpan()) : null;
+            var entry = await RecordAttendanceTodayUseCase.CheckInTodayAsync(_currentEmployeeId.Value, customIn);
+            _successMessage = $"Cháº¥m cÃ´ng VÃ€O thÃ nh cÃ´ng lÃºc {entry.CheckInTime:HH:mm:ss}!";
             await LoadDataAsync();
         }
         catch (BusinessRuleException brex)
@@ -457,7 +615,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Lỗi hệ thống: {ex.Message}";
+            _errorMessage = $"Lá»—i há»‡ thá»‘ng: {ex.Message}";
         }
         finally
         {
@@ -475,8 +633,9 @@
 
         try
         {
-            var entry = await RecordAttendanceTodayUseCase.CheckOutTodayAsync(_currentEmployeeId.Value);
-            _successMessage = $"Chấm công RA thành công lúc {entry.CheckOutTime:HH:mm:ss}! Tổng thời gian: {entry.WorkingHours}h công.";
+            DateTime? customOut = _isCustomTimeMode ? DateTime.Today.Add(_customCheckOutTime.ToTimeSpan()) : null;
+            var entry = await RecordAttendanceTodayUseCase.CheckOutTodayAsync(_currentEmployeeId.Value, customOut);
+            _successMessage = $"Cháº¥m cÃ´ng RA thÃ nh cÃ´ng lÃºc {entry.CheckOutTime:HH:mm:ss}! Tá»•ng thá»i gian: {entry.WorkingHours}h cÃ´ng.";
             await LoadDataAsync();
         }
         catch (BusinessRuleException brex)
@@ -485,7 +644,7 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Lỗi hệ thống: {ex.Message}";
+            _errorMessage = $"Lá»—i há»‡ thá»‘ng: {ex.Message}";
         }
         finally
         {
