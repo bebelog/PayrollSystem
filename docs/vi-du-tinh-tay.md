@@ -4,10 +4,10 @@
 
 ---
 
-## I. BẢNG THÔNG SỐ CẤU HÌNH ÁP DỤNG (KỲ THÁNG 10/2026)
+## I. BẢNG THÔNG SỐ CẤU HÌNH ÁP DỤNG (KỲ THÁNG 9/2026 - KỲ CHUẨN ĐỂ DEMO TÍNH LƯƠNG)
 
 * Số ngày công chuẩn của kỳ: **22 ngày**
-* Trần lương đóng bảo hiểm: **50.600.000 đ**
+* Trần lương đóng bảo hiểm: **50.600.000 đ** (Tính bằng:  \times 2.530.000$ đ/tháng theo mức tham chiếu Luật BHXH 2024 số 41/2024/QH15. Nếu theo Nghị định 73/2024/NĐ-CP cơ sở .340.000$ đ thì trần là  \times 2.340.000 = 46.800.000$ đ)
 * Mức giảm trừ gia cảnh bản thân: **15.500.000 đ/tháng**
 * Mức giảm trừ mỗi người phụ thuộc: **6.200.000 đ/người/tháng**
 * Tỷ lệ đóng bảo hiểm người lao động:
